@@ -1,16 +1,13 @@
 import type { AnalysisRequest, AnalysisResponse } from "../types/analysis";
+import { apiFetch } from "./client";
 
 export async function runAnalysis(
-  req: AnalysisRequest
+  req: AnalysisRequest,
 ): Promise<AnalysisResponse> {
-  const res = await fetch("/api/analyze/v3", {
+  const res = await apiFetch("/api/analyze/v3", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Analysis failed (${res.status}): ${detail}`);
-  }
-  return res.json();
+  return res.json() as Promise<AnalysisResponse>;
 }

@@ -332,13 +332,18 @@ sat-solar-beta-app/
     ├── package.json
     ├── tsconfig.json
     ├── vite.config.ts
+    ├── firebase.json                        # Firebase Hosting config
+    ├── .firebaserc                          # Firebase project selector
+    ├── .env.example                         # Local dev env template
+    ├── .env.production.example              # Production env template
     ├── index.html
     └── src/
         ├── main.tsx
         ├── App.tsx
         ├── vite-env.d.ts
         ├── api/
-        │   └── analysis.ts
+        │   ├── client.ts                    # API base URL & fetch wrapper
+        │   └── analysis.ts                  # Analysis endpoint caller
         ├── components/
         │   ├── InputPanel.tsx               # Orbit, array, constraint inputs
         │   ├── SummaryCards.tsx              # Ideal + achieved summary metrics
@@ -383,6 +388,63 @@ npm run dev
 
 The dev server starts at `http://localhost:5173` and proxies `/api` requests
 to the backend at port 8005.
+
+#### API Base URL Behavior
+
+The frontend uses the `VITE_API_BASE_URL` environment variable to decide
+where API requests are sent:
+
+| Environment | `VITE_API_BASE_URL` | API calls go to |
+|---|---|---|
+| Local dev (`npm run dev`) | **unset** (default) | Relative `/api/…` paths — handled by the Vite dev proxy → `localhost:8005` |
+| Production build | Set to Cloud Run URL | Full URL, e.g. `https://my-service-xyz.run.app/api/…` |
+
+To override in local development (e.g. to point at a remote backend):
+
+```bash
+VITE_API_BASE_URL=https://my-service-xyz.run.app npm run dev
+```
+
+### Building for Production
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+This produces a `dist/` directory containing the static SPA.
+
+To bake in the production API URL, create a `.env.production` file (or pass
+it inline):
+
+```bash
+# Option A: .env.production file
+echo 'VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app' > .env.production
+npm run build
+
+# Option B: inline
+VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app npm run build
+```
+
+### Deploying to Firebase Hosting
+
+Prerequisites: [Firebase CLI](https://firebase.google.com/docs/cli) installed
+and authenticated (`firebase login`).
+
+1. Edit `frontend/.firebaserc` and replace `YOUR_FIREBASE_PROJECT_ID` with
+   your actual Firebase project ID.
+2. Build and deploy:
+
+```bash
+cd frontend
+npm install
+VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app npm run build
+firebase deploy --only hosting
+```
+
+The `firebase.json` is configured for a single-page app — all routes rewrite
+to `index.html`.
 
 ---
 
