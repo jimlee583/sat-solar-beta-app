@@ -23,6 +23,14 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
       !Number.isInteger(form.num_samples_per_orbit)
     )
       e.num_samples_per_orbit = "Integer between 10 and 3600";
+    if (form.solar_array_area_m2_per_wing <= 0)
+      e.solar_array_area_m2_per_wing = "Must be > 0";
+    if (form.solar_cell_efficiency <= 0 || form.solar_cell_efficiency > 1)
+      e.solar_cell_efficiency = "Must be between 0 and 1";
+    if (form.degradation_factor <= 0 || form.degradation_factor > 1)
+      e.degradation_factor = "Must be between 0 and 1";
+    if (form.required_bus_power_w <= 0)
+      e.required_bus_power_w = "Must be > 0";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -38,7 +46,8 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
   }
 
   function update(field: keyof AnalysisRequest, raw: string) {
-    const val = field === "num_samples_per_orbit" ? parseInt(raw) : parseFloat(raw);
+    const val =
+      field === "num_samples_per_orbit" ? parseInt(raw) : parseFloat(raw);
     setForm((prev) => ({ ...prev, [field]: isNaN(val) ? 0 : val }));
   }
 
@@ -55,7 +64,9 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
           onChange={(e) => update("altitude_km", e.target.value)}
           style={styles.input}
         />
-        {errors.altitude_km && <span style={styles.err}>{errors.altitude_km}</span>}
+        {errors.altitude_km && (
+          <span style={styles.err}>{errors.altitude_km}</span>
+        )}
       </label>
 
       <label style={styles.label}>
@@ -69,7 +80,9 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
           onChange={(e) => update("beta_deg", e.target.value)}
           style={styles.input}
         />
-        {errors.beta_deg && <span style={styles.err}>{errors.beta_deg}</span>}
+        {errors.beta_deg && (
+          <span style={styles.err}>{errors.beta_deg}</span>
+        )}
       </label>
 
       <label style={styles.label}>
@@ -85,6 +98,73 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
         />
         {errors.num_samples_per_orbit && (
           <span style={styles.err}>{errors.num_samples_per_orbit}</span>
+        )}
+      </label>
+
+      <hr style={styles.divider} />
+      <h2 style={styles.heading}>Solar Array</h2>
+
+      <label style={styles.label}>
+        Array Area / Wing [m²]
+        <input
+          type="number"
+          step="any"
+          value={form.solar_array_area_m2_per_wing}
+          onChange={(e) =>
+            update("solar_array_area_m2_per_wing", e.target.value)
+          }
+          style={styles.input}
+        />
+        {errors.solar_array_area_m2_per_wing && (
+          <span style={styles.err}>
+            {errors.solar_array_area_m2_per_wing}
+          </span>
+        )}
+      </label>
+
+      <label style={styles.label}>
+        Cell Efficiency
+        <input
+          type="number"
+          step="0.01"
+          min={0}
+          max={1}
+          value={form.solar_cell_efficiency}
+          onChange={(e) => update("solar_cell_efficiency", e.target.value)}
+          style={styles.input}
+        />
+        {errors.solar_cell_efficiency && (
+          <span style={styles.err}>{errors.solar_cell_efficiency}</span>
+        )}
+      </label>
+
+      <label style={styles.label}>
+        Degradation Factor
+        <input
+          type="number"
+          step="0.01"
+          min={0}
+          max={1}
+          value={form.degradation_factor}
+          onChange={(e) => update("degradation_factor", e.target.value)}
+          style={styles.input}
+        />
+        {errors.degradation_factor && (
+          <span style={styles.err}>{errors.degradation_factor}</span>
+        )}
+      </label>
+
+      <label style={styles.label}>
+        Required Bus Power [W]
+        <input
+          type="number"
+          step="any"
+          value={form.required_bus_power_w}
+          onChange={(e) => update("required_bus_power_w", e.target.value)}
+          style={styles.input}
+        />
+        {errors.required_bus_power_w && (
+          <span style={styles.err}>{errors.required_bus_power_w}</span>
         )}
       </label>
 
@@ -104,7 +184,7 @@ const styles: Record<string, React.CSSProperties> = {
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "1rem",
+    gap: "0.75rem",
     padding: "1.5rem",
     background: "#f8f9fa",
     borderRadius: "8px",
@@ -116,6 +196,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "1.1rem",
     fontWeight: 600,
     color: "#212529",
+  },
+  divider: {
+    border: "none",
+    borderTop: "1px solid #dee2e6",
+    margin: "0.25rem 0",
   },
   label: {
     display: "flex",

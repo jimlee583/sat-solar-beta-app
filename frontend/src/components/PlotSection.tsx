@@ -23,7 +23,10 @@ function eclipseShapes(data: AnalysisResponse): Partial<Plotly.Shape>[] {
     if (data.in_eclipse[i] && start === null) {
       start = angles[i];
     }
-    if ((!data.in_eclipse[i] || i === data.in_eclipse.length - 1) && start !== null) {
+    if (
+      (!data.in_eclipse[i] || i === data.in_eclipse.length - 1) &&
+      start !== null
+    ) {
       shapes.push({
         type: "rect",
         xref: "x",
@@ -48,7 +51,136 @@ export default function PlotSection({ data }: PlotSectionProps) {
 
   return (
     <div style={styles.container}>
-      {/* Sun Azimuth & Elevation */}
+      {/* ---- V2: Power vs Orbit Angle ---- */}
+      <div style={styles.plotWrapper}>
+        <Plot
+          data={[
+            {
+              x: angles,
+              y: data.left_power_w,
+              name: "Left Wing",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#dc3545", width: 2 },
+            },
+            {
+              x: angles,
+              y: data.right_power_w,
+              name: "Right Wing",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#0d6efd", width: 2 },
+            },
+            {
+              x: angles,
+              y: data.total_power_w,
+              name: "Total",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#212529", width: 2.5 },
+            },
+          ]}
+          layout={{
+            ...LAYOUT_DEFAULTS,
+            title: { text: "Solar Array Power vs Orbit Angle" },
+            xaxis: { title: { text: "Orbit Angle [deg]" }, range: [0, 360] },
+            yaxis: { title: { text: "Power [W]" }, rangemode: "tozero" },
+            shapes,
+          }}
+          useResizeHandler
+          style={{ width: "100%", height: "350px" }}
+          config={{ responsive: true }}
+        />
+      </div>
+
+      {/* ---- V2: Gimbal Angles vs Orbit Angle ---- */}
+      <div style={styles.plotWrapper}>
+        <Plot
+          data={[
+            {
+              x: angles,
+              y: data.right_outer_angle_deg,
+              name: "Right Outer",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#0d6efd", width: 2 },
+            },
+            {
+              x: angles,
+              y: data.right_inner_angle_deg,
+              name: "Right Inner",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#0d6efd", width: 2, dash: "dash" },
+            },
+            {
+              x: angles,
+              y: data.left_outer_angle_deg,
+              name: "Left Outer",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#dc3545", width: 2 },
+            },
+            {
+              x: angles,
+              y: data.left_inner_angle_deg,
+              name: "Left Inner",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#dc3545", width: 2, dash: "dash" },
+            },
+          ]}
+          layout={{
+            ...LAYOUT_DEFAULTS,
+            title: { text: "Gimbal Angles vs Orbit Angle" },
+            xaxis: { title: { text: "Orbit Angle [deg]" }, range: [0, 360] },
+            yaxis: { title: { text: "Angle [deg]" } },
+            shapes,
+          }}
+          useResizeHandler
+          style={{ width: "100%", height: "350px" }}
+          config={{ responsive: true }}
+        />
+      </div>
+
+      {/* ---- V2: Incidence Angle vs Orbit Angle ---- */}
+      <div style={styles.plotWrapper}>
+        <Plot
+          data={[
+            {
+              x: angles,
+              y: data.right_incidence_deg,
+              name: "Right Wing",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#0d6efd", width: 2 },
+            },
+            {
+              x: angles,
+              y: data.left_incidence_deg,
+              name: "Left Wing",
+              type: "scatter",
+              mode: "lines",
+              line: { color: "#dc3545", width: 2 },
+            },
+          ]}
+          layout={{
+            ...LAYOUT_DEFAULTS,
+            title: { text: "Incidence Angle vs Orbit Angle" },
+            xaxis: { title: { text: "Orbit Angle [deg]" }, range: [0, 360] },
+            yaxis: {
+              title: { text: "Incidence [deg]" },
+              range: [-5, 95],
+            },
+            shapes,
+          }}
+          useResizeHandler
+          style={{ width: "100%", height: "350px" }}
+          config={{ responsive: true }}
+        />
+      </div>
+
+      {/* ---- V1: Sun Azimuth & Elevation ---- */}
       <div style={styles.plotWrapper}>
         <Plot
           data={[
@@ -82,7 +214,7 @@ export default function PlotSection({ data }: PlotSectionProps) {
         />
       </div>
 
-      {/* Sun VVLH Components */}
+      {/* ---- V1: Sun VVLH Components ---- */}
       <div style={styles.plotWrapper}>
         <Plot
           data={[
@@ -124,7 +256,7 @@ export default function PlotSection({ data }: PlotSectionProps) {
         />
       </div>
 
-      {/* Eclipse State */}
+      {/* ---- V1: Eclipse State ---- */}
       <div style={styles.plotWrapper}>
         <Plot
           data={[

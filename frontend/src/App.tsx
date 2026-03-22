@@ -27,7 +27,7 @@ export default function App() {
     <div style={styles.app}>
       <header style={styles.header}>
         <h1 style={styles.title}>Satellite Solar Environment Analyzer</h1>
-        <span style={styles.version}>v1.0 — Circular Orbit / Beta Angle</span>
+        <span style={styles.version}>v2.0 — Dual-Wing Solar Array / Power Model</span>
       </header>
 
       <div style={styles.body}>
