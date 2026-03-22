@@ -54,41 +54,6 @@ export interface AnalysisResponse {
   sun_el_deg: number[];
   in_eclipse: boolean[];
 
-  // V2: Right wing ideal arrays
-  right_outer_angle_deg: number[];
-  right_inner_angle_deg: number[];
-  right_normal_x: number[];
-  right_normal_y: number[];
-  right_normal_z: number[];
-  right_incidence_deg: number[];
-  right_cosine_efficiency: number[];
-  right_power_w: number[];
-
-  // V2: Left wing ideal arrays
-  left_outer_angle_deg: number[];
-  left_inner_angle_deg: number[];
-  left_normal_x: number[];
-  left_normal_y: number[];
-  left_normal_z: number[];
-  left_incidence_deg: number[];
-  left_cosine_efficiency: number[];
-  left_power_w: number[];
-
-  // V2: Total ideal power
-  total_power_w: number[];
-
-  // V2: Ideal summary
-  average_total_power_w: number;
-  average_left_power_w: number;
-  average_right_power_w: number;
-  peak_total_power_w: number;
-  min_total_power_w: number;
-  percent_of_required_bus_power_avg: number;
-  max_left_incidence_deg: number;
-  max_right_incidence_deg: number;
-  min_left_incidence_deg: number;
-  min_right_incidence_deg: number;
-
   // V3: Right wing ideal vs achieved
   right_ideal_outer_angle_deg: number[];
   right_ideal_inner_angle_deg: number[];
@@ -128,11 +93,19 @@ export interface AnalysisResponse {
   // V3: Summary metrics
   average_ideal_total_power_w: number;
   average_achieved_total_power_w: number;
+  average_ideal_left_power_w: number;
+  average_ideal_right_power_w: number;
+  peak_ideal_total_power_w: number;
+  min_ideal_total_power_w: number;
   percent_of_required_bus_power_ideal_avg: number;
   percent_of_required_bus_power_achieved_avg: number;
   ideal_tracking_loss_percent: number;
   constrained_tracking_loss_percent: number;
   achieved_vs_ideal_energy_ratio: number;
+  max_left_incidence_deg: number;
+  max_right_incidence_deg: number;
+  min_left_incidence_deg: number;
+  min_right_incidence_deg: number;
 
   right_fraction_outer_angle_limited: number;
   right_fraction_inner_angle_limited: number;

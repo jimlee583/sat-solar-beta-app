@@ -84,7 +84,7 @@ def is_in_keepout_zone(
     inner_deg: float,
     zone: KeepOutZone,
 ) -> bool:
-    """True if (outer_deg, inner_deg) lies strictly inside the rectangular zone."""
+    """True if (outer_deg, inner_deg) lies inside or on the boundary of the rectangular zone."""
     return (
         zone.outer_min_deg <= outer_deg <= zone.outer_max_deg
         and zone.inner_min_deg <= inner_deg <= zone.inner_max_deg

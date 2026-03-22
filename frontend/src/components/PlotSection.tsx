@@ -458,7 +458,7 @@ export default function PlotSection({ data }: PlotSectionProps) {
             ...LAYOUT_DEFAULTS,
             title: { text: "Sun Azimuth & Elevation vs Orbit Angle" },
             xaxis: { title: { text: "Orbit Angle [deg]" }, range: [0, 360] },
-            yaxis: { title: { text: "Angle [deg]" } },
+            yaxis: { title: { text: "Angle [deg]  (elevation: +90° = nadir, VVLH +Z convention)" } },
             shapes,
           }}
           useResizeHandler
