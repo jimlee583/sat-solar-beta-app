@@ -224,8 +224,8 @@ class AnalysisRequestV3(BaseModel):
     left_inner_max_deg: float = Field(default=90.0)
 
     # V3: Rate limits [deg/s]
-    outer_rate_limit_deg_per_s: float = Field(default=1.0, gt=0)
-    inner_rate_limit_deg_per_s: float = Field(default=1.0, gt=0)
+    outer_rate_limit_deg_per_s: float = Field(default=1.0, ge=0.5)
+    inner_rate_limit_deg_per_s: float = Field(default=1.0, ge=0.5)
 
     # V3: Keep-out zones
     keepout_zones: list[KeepOutZone] = Field(default_factory=list)
