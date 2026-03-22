@@ -1,0 +1,22 @@
+[project]
+name = "sat-solar-beta-app"
+version = "1.0.0"
+description = "Satellite solar environment analysis — circular LEO orbit, beta-angle-driven"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "numpy>=2.0",
+    "pydantic>=2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.28",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
