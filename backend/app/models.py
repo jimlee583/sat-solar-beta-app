@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +184,20 @@ class KeepOutZone(BaseModel):
     inner_max_deg: float = Field(description="Maximum inner angle of forbidden region [deg]")
     label: str = Field(default="", description="Optional label for this zone")
 
+    @model_validator(mode="after")
+    def check_zone_bounds(self) -> "KeepOutZone":
+        if self.outer_min_deg >= self.outer_max_deg:
+            raise ValueError(
+                f"outer_min_deg ({self.outer_min_deg}) must be less than "
+                f"outer_max_deg ({self.outer_max_deg})"
+            )
+        if self.inner_min_deg >= self.inner_max_deg:
+            raise ValueError(
+                f"inner_min_deg ({self.inner_min_deg}) must be less than "
+                f"inner_max_deg ({self.inner_max_deg})"
+            )
+        return self
+
 
 class AnalysisRequestV3(BaseModel):
     """Input parameters for Version 3 analysis (constrained articulation)."""
@@ -216,6 +230,25 @@ class AnalysisRequestV3(BaseModel):
     # V3: Keep-out zones
     keepout_zones: list[KeepOutZone] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def check_angle_limit_bounds(self) -> "AnalysisRequestV3":
+        pairs = [
+            ("right_outer_min_deg", "right_outer_max_deg",
+             self.right_outer_min_deg, self.right_outer_max_deg),
+            ("right_inner_min_deg", "right_inner_max_deg",
+             self.right_inner_min_deg, self.right_inner_max_deg),
+            ("left_outer_min_deg", "left_outer_max_deg",
+             self.left_outer_min_deg, self.left_outer_max_deg),
+            ("left_inner_min_deg", "left_inner_max_deg",
+             self.left_inner_min_deg, self.left_inner_max_deg),
+        ]
+        for min_name, max_name, min_val, max_val in pairs:
+            if min_val >= max_val:
+                raise ValueError(
+                    f"{min_name} ({min_val}) must be less than {max_name} ({max_val})"
+                )
+        return self
+
 
 class AnalysisResponseV3(BaseModel):
     """Full output of the Version 3 analysis (constrained articulation)."""
@@ -238,41 +271,6 @@ class AnalysisResponseV3(BaseModel):
     sun_az_deg: list[float]
     sun_el_deg: list[float]
     in_eclipse: list[bool]
-
-    # --- V2: Right wing ideal tracking arrays (preserved) ---
-    right_outer_angle_deg: list[float]
-    right_inner_angle_deg: list[float]
-    right_normal_x: list[float]
-    right_normal_y: list[float]
-    right_normal_z: list[float]
-    right_incidence_deg: list[float]
-    right_cosine_efficiency: list[float]
-    right_power_w: list[float]
-
-    # --- V2: Left wing ideal tracking arrays (preserved) ---
-    left_outer_angle_deg: list[float]
-    left_inner_angle_deg: list[float]
-    left_normal_x: list[float]
-    left_normal_y: list[float]
-    left_normal_z: list[float]
-    left_incidence_deg: list[float]
-    left_cosine_efficiency: list[float]
-    left_power_w: list[float]
-
-    # --- V2: Total power array (ideal) ---
-    total_power_w: list[float]
-
-    # --- V2: Summary scalars (ideal, preserved) ---
-    average_total_power_w: float
-    average_left_power_w: float
-    average_right_power_w: float
-    peak_total_power_w: float
-    min_total_power_w: float
-    percent_of_required_bus_power_avg: float
-    max_left_incidence_deg: float
-    max_right_incidence_deg: float
-    min_left_incidence_deg: float
-    min_right_incidence_deg: float
 
     # --- V3: Right wing ideal vs achieved ---
     right_ideal_outer_angle_deg: list[float]
@@ -313,11 +311,19 @@ class AnalysisResponseV3(BaseModel):
     # --- V3: Summary metrics ---
     average_ideal_total_power_w: float
     average_achieved_total_power_w: float
+    average_ideal_left_power_w: float
+    average_ideal_right_power_w: float
+    peak_ideal_total_power_w: float
+    min_ideal_total_power_w: float
     percent_of_required_bus_power_ideal_avg: float
     percent_of_required_bus_power_achieved_avg: float
     ideal_tracking_loss_percent: float
     constrained_tracking_loss_percent: float
     achieved_vs_ideal_energy_ratio: float
+    max_left_incidence_deg: float
+    max_right_incidence_deg: float
+    min_left_incidence_deg: float
+    min_right_incidence_deg: float
 
     right_fraction_outer_angle_limited: float
     right_fraction_inner_angle_limited: float

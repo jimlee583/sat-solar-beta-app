@@ -162,3 +162,36 @@ class TestResolveKeepoutViolation:
         assert adj is True
         assert tight_limits.outer_min <= o <= tight_limits.outer_max
         assert tight_limits.inner_min <= i <= tight_limits.inner_max
+
+    def test_fallback_when_zones_fill_allowed_space(self):
+        """T2: Two overlapping zones covering the entire allowed angle space.
+
+        When no boundary candidate survives, the fallback clips to axis limits.
+        The returned label should contain 'UNRESOLVED' to signal the caller
+        that the position may still be inside a keep-out zone.
+        """
+        # Allowed space is outer=[-5, 5], inner=[-5, 5].
+        # Two zones cover it entirely.
+        tight_limits = AxisLimits(outer_min=-5.0, outer_max=5.0,
+                                  inner_min=-5.0, inner_max=5.0)
+        zone_a = KeepOutZone(
+            wing="right",
+            outer_min_deg=-5.0, outer_max_deg=0.1,
+            inner_min_deg=-5.0, inner_max_deg=5.0,
+        )
+        zone_b = KeepOutZone(
+            wing="right",
+            outer_min_deg=-0.1, outer_max_deg=5.0,
+            inner_min_deg=-5.0, inner_max_deg=5.0,
+        )
+        o, i, adj, lbl = resolve_keepout_violation(
+            "right", 0.0, 0.0, [zone_a, zone_b], tight_limits,
+        )
+        assert adj is True
+        # The fallback position is clipped to axis limits
+        assert tight_limits.outer_min <= o <= tight_limits.outer_max
+        assert tight_limits.inner_min <= i <= tight_limits.inner_max
+        # Label must signal that the fallback was taken and resolution failed
+        assert "UNRESOLVED" in lbl, (
+            f"Expected 'UNRESOLVED' in label when no valid candidate exists, got '{lbl}'"
+        )

@@ -231,6 +231,19 @@ S_y = −sin(β)
 S_z = −cos(θ) cos(β)
 ```
 
+### Sun Azimuth and Elevation (VVLH convention)
+
+```
+azimuth   = atan2(S_y, S_x)   [deg]
+elevation = arcsin(S_z)        [deg]
+```
+
+**Note:** Elevation uses the VVLH +Z (nadir) axis as reference. Positive
+elevation means the Sun is toward nadir (+Z). This is the opposite of the
+standard aerospace convention where elevation = 0° at the horizon and +90°
+at zenith. At the subsolar point (θ=0, β=0), elevation = −90° (Sun at
+anti-nadir/zenith in VVLH).
+
 ### Solar Power (per wing)
 
 ```
