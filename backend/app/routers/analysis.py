@@ -266,8 +266,21 @@ def analyze_v3(req: AnalysisRequestV3) -> AnalysisResponseV3:
         1361.0 * req.solar_array_area_m2_per_wing * 2.0
         * req.solar_cell_efficiency * req.degradation_factor
     )
-    ideal_loss = (1.0 - avg_ideal / max_possible) * 100.0 if max_possible > 0 else 0.0
-    constrained_loss = (1.0 - avg_achieved / max_possible) * 100.0 if max_possible > 0 else 0.0
+
+    # Pointing-loss metrics are computed over *sunlit samples only* so that
+    # eclipse unavailability does not inflate the reported loss percentage.
+    # (Eclipse loss is already captured by eclipse_fraction in the response.)
+    sunlit = ~mask
+    n_sunlit = int(np.sum(sunlit))
+    if n_sunlit > 0 and max_possible > 0:
+        avg_ideal_sunlit = float(np.sum(total_power_ideal[sunlit])) / n_sunlit
+        avg_achieved_sunlit = float(np.sum(total_power_achieved[sunlit])) / n_sunlit
+        ideal_loss = (1.0 - avg_ideal_sunlit / max_possible) * 100.0
+        constrained_loss = (1.0 - avg_achieved_sunlit / max_possible) * 100.0
+    else:
+        ideal_loss = 0.0
+        constrained_loss = 0.0
+
     energy_ratio = avg_achieved / avg_ideal if avg_ideal > 0 else 0.0
 
     pct_ideal = (avg_ideal / req.required_bus_power_w * 100.0) if req.required_bus_power_w > 0 else 0.0

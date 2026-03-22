@@ -23,6 +23,7 @@ from app.services.constraints import (
     AxisLimits,
     apply_angle_limits,
     apply_rate_limit,
+    find_keepout_violation,
     resolve_keepout_violation,
 )
 from app.services.solar_array_geometry import compute_wing_normal
@@ -72,8 +73,8 @@ def compute_constrained_tracking(
         cmd_outer, cmd_inner, was_kz, kz_label = resolve_keepout_violation(
             wing_name, cmd_outer, cmd_inner, keepout_zones, axis_limits,
         )
-        in_keepout[i] = was_kz
-        keepout_labels[i] = kz_label
+        # NOTE: in_keepout flag is set after step 4 (rate limiting) so it
+        # reflects the *achieved* angle, not the ideal/resolved command.
 
         # 3. Apply angle limits
         cmd_outer, was_outer_lim = apply_angle_limits(
@@ -103,6 +104,16 @@ def compute_constrained_tracking(
 
         achieved_outer[i] = ach_outer
         achieved_inner[i] = ach_inner
+
+        # Post-rate-limit keep-out validation (C1+C2 fix):
+        # Rate limiting may prevent the achieved angle from reaching the
+        # resolved boundary, leaving it inside a keep-out zone.  Report
+        # in_keepout based on where the *achieved* angle actually lands.
+        ach_kz_violated, ach_kz_label = find_keepout_violation(
+            wing_name, ach_outer, ach_inner, keepout_zones,
+        )
+        in_keepout[i] = ach_kz_violated
+        keepout_labels[i] = ach_kz_label if ach_kz_violated else kz_label
 
         # 5. Compute achieved wing normal and incidence
         o_rad = np.radians(ach_outer)

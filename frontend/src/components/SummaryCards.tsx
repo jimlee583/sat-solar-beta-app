@@ -35,7 +35,7 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
       color: data.percent_of_required_bus_power_ideal_avg >= 100 ? "#198754" : "#dc3545",
     },
     {
-      label: "Ideal Loss",
+      label: "Ideal Loss (sunlit)",
       value: data.ideal_tracking_loss_percent.toFixed(2),
       unit: "%",
     },
@@ -55,7 +55,7 @@ export default function SummaryCards({ data }: SummaryCardsProps) {
       color: data.percent_of_required_bus_power_achieved_avg >= 100 ? "#198754" : "#dc3545",
     },
     {
-      label: "Constrained Loss",
+      label: "Constrained Loss (sunlit)",
       value: data.constrained_tracking_loss_percent.toFixed(2),
       unit: "%",
     },

@@ -207,7 +207,17 @@ def resolve_keepout_violation(
                 best_label = zone.label
 
     if math.isinf(best_dist):
+        # No boundary candidate survived — overlapping zones fill the allowed
+        # space.  Clip to axis limits as a last resort and validate.
         best_outer = max(axis_limits.outer_min, min(axis_limits.outer_max, ideal_outer_deg))
         best_inner = max(axis_limits.inner_min, min(axis_limits.inner_max, ideal_inner_deg))
+        still_violated, still_label = find_keepout_violation(
+            wing_name, best_outer, best_inner, keepout_zones,
+        )
+        if still_violated:
+            # Keep-out zones cover the entire allowed angle space; no valid
+            # position exists.  The caller (tracking loop) will detect this
+            # via its post-rate-limit keep-out check on the achieved angle.
+            best_label = f"UNRESOLVED:{still_label}"
 
     return best_outer, best_inner, True, best_label
