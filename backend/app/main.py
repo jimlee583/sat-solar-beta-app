@@ -7,8 +7,11 @@ from app.routers import analysis
 
 app = FastAPI(
     title="Satellite Solar Environment Analyzer",
-    version="1.0.0",
-    description="Circular-orbit solar environment analysis using altitude and beta angle.",
+    version="2.0.0",
+    description=(
+        "Circular-orbit solar environment analysis with dual-wing solar array "
+        "geometry, ideal Sun tracking, and power generation model."
+    ),
 )
 
 app.add_middleware(
