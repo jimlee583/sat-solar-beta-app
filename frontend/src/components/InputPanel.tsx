@@ -310,12 +310,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.8rem",
     fontWeight: 500,
     color: "#495057",
+    minWidth: 0,
   },
   input: {
     padding: "0.4rem",
     border: "1px solid #ced4da",
     borderRadius: "4px",
     fontSize: "0.85rem",
+    width: "100%",
+    boxSizing: "border-box" as const,
   },
   err: {
     color: "#dc3545",
@@ -325,6 +328,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "0.5rem",
+    minWidth: 0,
   },
   placeholder: {
     fontSize: "0.8rem",
