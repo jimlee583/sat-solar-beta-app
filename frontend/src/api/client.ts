@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
 
 /**
  * Build a full API URL from a path like "/api/analyze/v3".
@@ -42,7 +42,6 @@ export async function apiFetch(
   const url = apiUrl(path);
   let res: Response;
   try {
-    console.log("Fetching API URL:", url);
     res = await fetch(url, init);
   } catch (err) {
     throw new Error(

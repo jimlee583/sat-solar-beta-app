@@ -354,7 +354,17 @@ sat-solar-beta-app/
 
 ---
 
-## Running Locally
+## Production URLs
+
+| Service | URL |
+|---|---|
+| Frontend (Firebase Hosting) | https://sat-solar-app.web.app |
+| Backend (Cloud Run) | https://sat-solar-backend-89232339151.us-west4.run.app |
+| Backend API docs | https://sat-solar-backend-89232339151.us-west4.run.app/docs |
+
+---
+
+## Local Development
 
 ### Backend
 
@@ -387,7 +397,13 @@ npm run dev
 ```
 
 The dev server starts at `http://localhost:5173` and proxies `/api` requests
-to the backend at port 8005.
+to the backend at port 8005 via the Vite dev-server proxy (configured in
+`vite.config.ts`).
+
+> **Local dev vs production:** In local development the frontend sends
+> relative `/api/…` requests that the Vite proxy forwards to the backend on
+> `localhost:8005`. In production there is no proxy — the frontend calls the
+> Cloud Run backend URL directly (see *Frontend Deployment* below).
 
 #### API Base URL Behavior
 
@@ -397,54 +413,149 @@ where API requests are sent:
 | Environment | `VITE_API_BASE_URL` | API calls go to |
 |---|---|---|
 | Local dev (`npm run dev`) | **unset** (default) | Relative `/api/…` paths — handled by the Vite dev proxy → `localhost:8005` |
-| Production build | Set to Cloud Run URL | Full URL, e.g. `https://my-service-xyz.run.app/api/…` |
+| Production build | Set to Cloud Run URL | Full URL, e.g. `https://sat-solar-backend-89232339151.us-west4.run.app/api/…` |
 
-To override in local development (e.g. to point at a remote backend):
+To override in local development (e.g. to point at the remote backend):
 
 ```bash
-VITE_API_BASE_URL=https://my-service-xyz.run.app npm run dev
+VITE_API_BASE_URL=https://sat-solar-backend-89232339151.us-west4.run.app npm run dev
 ```
 
-### Building for Production
+---
+
+## Deployment — Backend (Cloud Run)
+
+The backend is a Dockerized FastAPI service deployed to **Google Cloud Run**.
+
+| Detail | Value |
+|---|---|
+| GCP Project | `sat-solar-app` |
+| Artifact Registry region | `us-west4` |
+| Artifact Registry repo | `sat-solar-backend` |
+| Cloud Run service | `sat-solar-backend` |
+
+### Rebuild & Redeploy
+
+Run from the **repository root** after making backend code changes.
+
+**1. Build and push the Docker image:**
 
 ```bash
-cd frontend
-npm install
-npm run build
+docker buildx build --platform linux/amd64 \
+  -t us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:v2 \
+  -f backend/Dockerfile backend \
+  --push
 ```
 
-This produces a `dist/` directory containing the static SPA.
-
-To bake in the production API URL, create a `.env.production` file (or pass
-it inline):
+**2. Deploy the new image to Cloud Run:**
 
 ```bash
-# Option A: .env.production file
-echo 'VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app' > .env.production
-npm run build
-
-# Option B: inline
-VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app npm run build
+gcloud run deploy sat-solar-backend \
+  --image us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:v2 \
+  --region us-west4 \
+  --platform managed \
+  --allow-unauthenticated
 ```
 
-### Deploying to Firebase Hosting
+> **Tip:** Bump the tag (e.g. `:v3`, `:v4`) for each release so you can roll
+> back to a previous image if needed.
 
-Prerequisites: [Firebase CLI](https://firebase.google.com/docs/cli) installed
-and authenticated (`firebase login`).
+---
 
-1. Edit `frontend/.firebaserc` and replace `YOUR_FIREBASE_PROJECT_ID` with
-   your actual Firebase project ID.
-2. Build and deploy:
+## Deployment — Frontend (Firebase Hosting)
+
+The frontend is a React + TypeScript + Vite SPA deployed to
+**Firebase Hosting**.
+
+Prerequisites:
+- [Firebase CLI](https://firebase.google.com/docs/cli) installed and
+  authenticated (`firebase login`)
+- `frontend/.firebaserc` must reference the Firebase project `sat-solar-app`
+
+### Rebuild & Redeploy
+
+Run from the **`frontend/` directory** after making frontend code changes.
+
+**1. Production build:**
 
 ```bash
-cd frontend
-npm install
-VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app npm run build
+npm run build:prod
+```
+
+`build:prod` (defined in `package.json`) automatically injects the required
+environment variable:
+
+```
+VITE_API_BASE_URL=https://sat-solar-backend-89232339151.us-west4.run.app
+```
+
+This ensures the compiled frontend calls the Cloud Run backend directly
+instead of using a relative proxy path.
+
+**2. Deploy to Firebase Hosting:**
+
+```bash
 firebase deploy --only hosting
 ```
 
 The `firebase.json` is configured for a single-page app — all routes rewrite
 to `index.html`.
+
+### Manual / Alternative Build
+
+If you need to set the API URL yourself (or use a different backend):
+
+```bash
+VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app npm run build
+firebase deploy --only hosting
+```
+
+---
+
+## Notes & Gotchas
+
+### CORS
+
+The FastAPI backend must include every origin that will call it in its CORS
+`allow_origins` list (`backend/app/main.py`). The current allowed origins
+are:
+
+| Origin | Purpose |
+|---|---|
+| `http://localhost:5173` | Local Vite dev server |
+| `https://sat-solar-app.web.app` | Firebase Hosting (primary) |
+| `https://sat-solar-app.firebaseapp.com` | Firebase Hosting (alternate) |
+
+If you add a new hosting domain or change the Firebase project, update the
+CORS list in `main.py` **and** redeploy the backend.
+
+### Architecture Overview
+
+```
+┌─────────────────────┐         ┌─────────────────────────┐
+│  Firebase Hosting    │  HTTPS  │  Google Cloud Run        │
+│  (static SPA)        │ ──────► │  (FastAPI Docker image)  │
+│  sat-solar-app.web.  │         │  sat-solar-backend-…     │
+│  app                 │         │  .us-west4.run.app       │
+└─────────────────────┘         └─────────────────────────┘
+        ▲                                ▲
+        │  npm run build:prod            │  docker buildx build … --push
+        │  firebase deploy               │  gcloud run deploy
+        │                                │
+   frontend/                        backend/
+```
+
+- **Local dev** — Vite proxies API requests (`localhost:5173` →
+  `localhost:8005`); no CORS needed for local-to-local calls.
+- **Production** — The browser loads the SPA from Firebase Hosting and makes
+  direct `fetch()` calls to the Cloud Run backend URL. CORS headers are
+  required because the two origins differ.
+
+### Docker Platform
+
+Cloud Run requires a `linux/amd64` image. The `--platform linux/amd64` flag
+in the `docker buildx build` command ensures the image is built for the
+correct architecture, even when building on an Apple Silicon (arm64) Mac.
 
 ---
 
