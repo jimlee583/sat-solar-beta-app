@@ -3,7 +3,6 @@ import InputPanel from "./components/InputPanel";
 import SummaryCards from "./components/SummaryCards";
 import PlotSection from "./components/PlotSection";
 import { runAnalysis } from "./api/analysis";
-import { apiUrl } from "./api/client";
 import type { AnalysisRequest, AnalysisResponse } from "./types/analysis";
 
 export default function App() {
@@ -37,13 +36,6 @@ export default function App() {
         </aside>
 
         <main style={styles.main}>
-          {/* TEMP DEBUG — remove after verifying production URLs */}
-          <div style={styles.debug}>
-            <strong>DEBUG</strong>{" "}
-            VITE_API_BASE_URL: <code>{import.meta.env.VITE_API_BASE_URL ?? "(unset)"}</code>{" | "}
-            apiUrl("/api/analyze/v3"): <code>{apiUrl("/api/analyze/v3")}</code>
-          </div>
-
           {error && <div style={styles.error}>{error}</div>}
 
           {!result && !error && (
@@ -115,16 +107,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.9rem",
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
-  },
-  debug: {
-    padding: "0.5rem 1rem",
-    background: "#fff3cd",
-    color: "#664d03",
-    borderRadius: "6px",
-    border: "1px solid #ffecb5",
-    fontSize: "0.78rem",
-    fontFamily: "monospace",
-    wordBreak: "break-all" as const,
   },
   placeholder: {
     padding: "3rem",

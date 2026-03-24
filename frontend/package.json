@@ -3,11 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:prod": "VITE_API_BASE_URL=https://sat-solar-backend-89232339151.us-west4.run.app sh -c 'tsc -b && vite build'",
+    "deploy:hosting": "firebase deploy --only hosting",
     "preview": "vite preview"
   },
+
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
