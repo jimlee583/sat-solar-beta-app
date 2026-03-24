@@ -40,10 +40,10 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
       e.degradation_factor = "Must be between 0 and 1";
     if (form.required_bus_power_w <= 0)
       e.required_bus_power_w = "Must be > 0";
-    if (form.outer_rate_limit_deg_per_s < 0.5)
-      e.outer_rate_limit = "Must be ≥ 0.5";
-    if (form.inner_rate_limit_deg_per_s < 0.5)
-      e.inner_rate_limit = "Must be ≥ 0.5";
+    if (form.outer_rate_limit_deg_per_s < 0.05)
+      e.outer_rate_limit = "Must be ≥ 0.05";
+    if (form.inner_rate_limit_deg_per_s < 0.05)
+      e.inner_rate_limit = "Must be ≥ 0.05";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -198,14 +198,14 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
 
       <label style={styles.label}>
         Outer Axis Rate Limit
-        <input type="number" step="0.1" min={0.5} value={form.outer_rate_limit_deg_per_s}
+        <input type="number" step="0.01" min={0.05} value={form.outer_rate_limit_deg_per_s}
           onChange={(e) => update("outer_rate_limit_deg_per_s", e.target.value)} style={styles.input} />
         {errors.outer_rate_limit && <span style={styles.err}>{errors.outer_rate_limit}</span>}
       </label>
 
       <label style={styles.label}>
         Inner Axis Rate Limit
-        <input type="number" step="0.1" min={0.5} value={form.inner_rate_limit_deg_per_s}
+        <input type="number" step="0.01" min={0.05} value={form.inner_rate_limit_deg_per_s}
           onChange={(e) => update("inner_rate_limit_deg_per_s", e.target.value)} style={styles.input} />
         {errors.inner_rate_limit && <span style={styles.err}>{errors.inner_rate_limit}</span>}
       </label>
