@@ -122,7 +122,7 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
       <h2 style={styles.heading}>Solar Array</h2>
 
       <label style={styles.label}>
-        Array Area / Wing [m\u00b2]
+        Array Area / Wing [m²]
         <input type="number" step="any" value={form.solar_array_area_m2_per_wing}
           onChange={(e) => update("solar_array_area_m2_per_wing", e.target.value)} style={styles.input} />
         {errors.solar_array_area_m2_per_wing && <span style={styles.err}>{errors.solar_array_area_m2_per_wing}</span>}
