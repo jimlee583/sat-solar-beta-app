@@ -216,12 +216,12 @@ class AnalysisRequestV3(BaseModel):
     # V3: Per-axis angle limits [deg]
     right_outer_min_deg: float = Field(default=-180.0)
     right_outer_max_deg: float = Field(default=180.0)
-    right_inner_min_deg: float = Field(default=-90.0)
-    right_inner_max_deg: float = Field(default=90.0)
+    right_inner_min_deg: float = Field(default=-60.0)
+    right_inner_max_deg: float = Field(default=60.0)
     left_outer_min_deg: float = Field(default=-180.0)
     left_outer_max_deg: float = Field(default=180.0)
-    left_inner_min_deg: float = Field(default=-90.0)
-    left_inner_max_deg: float = Field(default=90.0)
+    left_inner_min_deg: float = Field(default=-60.0)
+    left_inner_max_deg: float = Field(default=60.0)
 
     # V3: Rate limits [deg/s]
     outer_rate_limit_deg_per_s: float = Field(default=1.0, ge=0.05)
