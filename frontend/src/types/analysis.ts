@@ -130,12 +130,12 @@ export const DEFAULT_REQUEST: AnalysisRequest = {
 
   right_outer_min_deg: -180,
   right_outer_max_deg: 180,
-  right_inner_min_deg: -90,
-  right_inner_max_deg: 90,
+  right_inner_min_deg: -60,
+  right_inner_max_deg: 60,
   left_outer_min_deg: -180,
   left_outer_max_deg: 180,
-  left_inner_min_deg: -90,
-  left_inner_max_deg: 90,
+  left_inner_min_deg: -60,
+  left_inner_max_deg: 60,
 
   outer_rate_limit_deg_per_s: 1.0,
   inner_rate_limit_deg_per_s: 1.0,
