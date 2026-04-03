@@ -1,20 +1,26 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import InputPanel from "./components/InputPanel";
 import SummaryCards from "./components/SummaryCards";
 import PlotSection from "./components/PlotSection";
+import OrbitViewer3D from "./components/OrbitViewer3D";
 import { runAnalysis } from "./api/analysis";
 import type { AnalysisRequest, AnalysisResponse } from "./types/analysis";
+
+type ResultTab = "3d" | "charts";
 
 export default function App() {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ResultTab>("3d");
+  const lastRequestRef = useRef<AnalysisRequest | null>(null);
 
   async function handleAnalyze(req: AnalysisRequest) {
     setLoading(true);
     setError(null);
     try {
       const data = await runAnalysis(req);
+      lastRequestRef.current = req;
       setResult(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unexpected error");
@@ -46,8 +52,34 @@ export default function App() {
 
           {result && (
             <>
-              <SummaryCards data={result} />
-              <PlotSection data={result} />
+              <div style={styles.tabBar}>
+                <button
+                  style={activeTab === "3d" ? styles.tabActive : styles.tab}
+                  onClick={() => setActiveTab("3d")}
+                >
+                  3D Orbit View
+                </button>
+                <button
+                  style={activeTab === "charts" ? styles.tabActive : styles.tab}
+                  onClick={() => setActiveTab("charts")}
+                >
+                  Charts
+                </button>
+              </div>
+
+              {activeTab === "3d" && (
+                <OrbitViewer3D
+                  data={result}
+                  betaDeg={lastRequestRef.current?.beta_deg ?? 0}
+                />
+              )}
+
+              {activeTab === "charts" && (
+                <>
+                  <SummaryCards data={result} />
+                  <PlotSection data={result} />
+                </>
+              )}
             </>
           )}
         </main>
@@ -116,5 +148,32 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#fff",
     borderRadius: "8px",
     border: "1px solid #dee2e6",
+  },
+  tabBar: {
+    display: "flex",
+    gap: "0",
+    borderBottom: "2px solid #dee2e6",
+  },
+  tab: {
+    padding: "0.55rem 1.25rem",
+    background: "transparent",
+    border: "none",
+    borderBottom: "2px solid transparent",
+    marginBottom: "-2px",
+    fontSize: "0.9rem",
+    fontWeight: 600,
+    color: "#6c757d",
+    cursor: "pointer",
+  },
+  tabActive: {
+    padding: "0.55rem 1.25rem",
+    background: "transparent",
+    border: "none",
+    borderBottom: "2px solid #0d6efd",
+    marginBottom: "-2px",
+    fontSize: "0.9rem",
+    fontWeight: 600,
+    color: "#0d6efd",
+    cursor: "pointer",
   },
 };
