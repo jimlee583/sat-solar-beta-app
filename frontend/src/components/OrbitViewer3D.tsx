@@ -271,7 +271,7 @@ function SatelliteGroup({
         {/* Right wing (+Y side in body frame) */}
         <group position={[0, 0.07, 0]} quaternion={rightWingQ}>
           <mesh position={[0, 0.02, 0]}>
-            <boxGeometry args={[0.10, 0.04, 0.003]} />
+            <boxGeometry args={[0.10, 0.003, 0.04]} />
             <meshStandardMaterial
               color="#1a3a6e"
               roughness={0.3}
@@ -284,8 +284,8 @@ function SatelliteGroup({
 
         {/* Left wing (-Y side in body frame) */}
         <group position={[0, -0.07, 0]} quaternion={leftWingQ}>
-          <mesh position={[0, -0.02, 0]}>
-            <boxGeometry args={[0.10, 0.04, 0.003]} />
+          <mesh position={[0, 0.02, 0]}>
+            <boxGeometry args={[0.10, 0.003, 0.04]} />
             <meshStandardMaterial
               color="#1a3a6e"
               roughness={0.3}
