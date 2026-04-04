@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Line } from "@react-three/drei";
+import { OrbitControls, Line, Edges } from "@react-three/drei";
 import * as THREE from "three";
 import type { AnalysisResponse } from "../types/analysis";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -265,31 +265,34 @@ function SatelliteGroup({
         <mesh>
           <boxGeometry args={[0.06, 0.04, 0.04]} />
           <meshStandardMaterial color="#cccccc" roughness={0.4} metalness={0.6} />
+          <Edges color="white" />
         </mesh>
 
         {/* Right wing (+Y side in body frame) */}
         <group position={[0, 0.07, 0]} quaternion={rightWingQ}>
-          <mesh position={[0, 0.05, 0]}>
-            <boxGeometry args={[0.04, 0.10, 0.003]} />
+          <mesh position={[0, 0.02, 0]}>
+            <boxGeometry args={[0.10, 0.04, 0.003]} />
             <meshStandardMaterial
               color="#1a3a6e"
               roughness={0.3}
               metalness={0.7}
               side={THREE.DoubleSide}
             />
+            <Edges color="white" />
           </mesh>
         </group>
 
         {/* Left wing (-Y side in body frame) */}
         <group position={[0, -0.07, 0]} quaternion={leftWingQ}>
-          <mesh position={[0, -0.05, 0]}>
-            <boxGeometry args={[0.04, 0.10, 0.003]} />
+          <mesh position={[0, -0.02, 0]}>
+            <boxGeometry args={[0.10, 0.04, 0.003]} />
             <meshStandardMaterial
               color="#1a3a6e"
               roughness={0.3}
               metalness={0.7}
               side={THREE.DoubleSide}
             />
+            <Edges color="white" />
           </mesh>
         </group>
       </group>
