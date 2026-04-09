@@ -3,10 +3,11 @@ import InputPanel from "./components/InputPanel";
 import SummaryCards from "./components/SummaryCards";
 import PlotSection from "./components/PlotSection";
 import OrbitViewer3D from "./components/OrbitViewer3D";
+import BodyFrameViewer from "./components/BodyFrameViewer";
 import { runAnalysis } from "./api/analysis";
 import type { AnalysisRequest, AnalysisResponse } from "./types/analysis";
 
-type ResultTab = "3d" | "charts";
+type ResultTab = "3d" | "body" | "charts";
 
 export default function App() {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
@@ -60,6 +61,12 @@ export default function App() {
                   3D Orbit View
                 </button>
                 <button
+                  style={activeTab === "body" ? styles.tabActive : styles.tab}
+                  onClick={() => setActiveTab("body")}
+                >
+                  SV Body View
+                </button>
+                <button
                   style={activeTab === "charts" ? styles.tabActive : styles.tab}
                   onClick={() => setActiveTab("charts")}
                 >
@@ -69,6 +76,13 @@ export default function App() {
 
               {activeTab === "3d" && (
                 <OrbitViewer3D
+                  data={result}
+                  betaDeg={lastRequestRef.current?.beta_deg ?? 0}
+                />
+              )}
+
+              {activeTab === "body" && (
+                <BodyFrameViewer
                   data={result}
                   betaDeg={lastRequestRef.current?.beta_deg ?? 0}
                 />
