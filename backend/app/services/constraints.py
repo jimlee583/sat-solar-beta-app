@@ -60,12 +60,18 @@ def apply_rate_limit(
     """
     Move from *prev_deg* toward *cmd_deg*, limited by max angular rate.
 
+    Delta is wrapped to the shortest arc on a circle (−180°, +180°] before
+    the magnitude check, so a transition from +179° to −179° is treated as a
+    +2° step rather than −358°.  This is essential for outer-axis tracking at
+    high beta angles where the ideal outer angle lives near ±180°.
+
     max_delta = rate_limit_deg_per_s * dt_s
 
     Returns (achieved_deg, was_rate_limited).
     """
     max_delta = rate_limit_deg_per_s * dt_s
     delta = cmd_deg - prev_deg
+    delta = (delta + 180.0) % 360.0 - 180.0   # wrap to shortest arc in (-180°, +180°]
 
     if abs(delta) <= max_delta:
         return cmd_deg, False

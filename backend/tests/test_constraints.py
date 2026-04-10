@@ -83,6 +83,42 @@ class TestApplyRateLimit:
         assert abs(val - prev) <= max_delta + 1e-12
         assert limited is True
 
+    def test_wraparound_no_limit_short_arc(self):
+        # +179° → −179° is a +2° arc through ±180°; no rate limiting at 5 deg/s
+        val, limited = apply_rate_limit(179.0, -179.0, 5.0, 1.0)
+        assert val == pytest.approx(-179.0)
+        assert limited is False
+
+    def test_wraparound_no_limit_opposite_direction(self):
+        # −179° → +179° is a −2° arc; no rate limiting at 5 deg/s
+        val, limited = apply_rate_limit(-179.0, 179.0, 5.0, 1.0)
+        assert val == pytest.approx(179.0)
+        assert limited is False
+
+    def test_wraparound_slews_through_180_not_through_0(self):
+        # prev=+170°, cmd=−170°.  Shortest arc = +20° (through ±180°).
+        # Old code: delta=−340° → slews to +165° (wrong direction).
+        # New code: delta=+20° → slews to +175° (correct direction, rate-limited).
+        val, limited = apply_rate_limit(170.0, -170.0, 5.0, 1.0)
+        assert val == pytest.approx(175.0)
+        assert limited is True
+
+    def test_wraparound_rate_limited_converges_through_180(self):
+        # Start at +175°, cmd=−175°.  Shortest arc = +10°, rate=3°/step.
+        # Step trace: 175 → 178 → 181 → 184 → −175 (4 steps)
+        rate, dt = 3.0, 1.0
+        prev = 175.0
+        cmd = -175.0
+        for _ in range(4):
+            prev, _ = apply_rate_limit(prev, cmd, rate, dt)
+        assert prev == pytest.approx(-175.0, abs=1e-9)
+
+    def test_no_spurious_wraparound_near_180(self):
+        # prev=+180°, cmd=+179°: linear delta=−1°, wrapping is a no-op
+        val, limited = apply_rate_limit(180.0, 179.0, 5.0, 1.0)
+        assert val == pytest.approx(179.0)
+        assert limited is False
+
 
 # ---------------------------------------------------------------------------
 # Keep-out zone detection
