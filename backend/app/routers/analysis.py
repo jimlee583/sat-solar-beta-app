@@ -22,6 +22,8 @@ from app.services.eclipse import (
 from app.services.orbit import orbit_radius_km, orbital_period_s
 from app.services.power import compute_power_summary, compute_wing_power
 from app.services.solar_array_geometry import (
+    N0_AFT,
+    N0_FORWARD,
     N0_LEFT,
     N0_RIGHT,
     compute_wing_arrays,
@@ -122,9 +124,15 @@ def analyze_v2(req: AnalysisRequestV2) -> AnalysisResponseV2:
     """Run the Version 2 analysis: orbit + dual-wing solar array + power."""
     b = _compute_v1_base(req.altitude_km, req.beta_deg, req.num_samples_per_orbit)
 
+    # Resolve wing mounting
+    if req.wing_mounting == "x":
+        n0_right, n0_left, mounting = N0_FORWARD, N0_AFT, "x"
+    else:
+        n0_right, n0_left, mounting = N0_RIGHT, N0_LEFT, "y"
+
     # Solar array tracking for each wing
-    right_wing = compute_wing_arrays(b.sx, b.sy, b.sz, N0_RIGHT)
-    left_wing = compute_wing_arrays(b.sx, b.sy, b.sz, N0_LEFT)
+    right_wing = compute_wing_arrays(b.sx, b.sy, b.sz, n0_right, mounting=mounting)
+    left_wing = compute_wing_arrays(b.sx, b.sy, b.sz, n0_left, mounting=mounting)
 
     # Power per wing
     right_power = compute_wing_power(
@@ -188,9 +196,15 @@ def analyze_v3(req: AnalysisRequestV3) -> AnalysisResponseV3:
     """Run the Version 3 analysis: constrained articulation tracking."""
     b = _compute_v1_base(req.altitude_km, req.beta_deg, req.num_samples_per_orbit)
 
+    # Resolve wing mounting
+    if req.wing_mounting == "x":
+        n0_right, n0_left, mounting = N0_FORWARD, N0_AFT, "x"
+    else:
+        n0_right, n0_left, mounting = N0_RIGHT, N0_LEFT, "y"
+
     # Ideal solar array tracking for each wing
-    right_wing = compute_wing_arrays(b.sx, b.sy, b.sz, N0_RIGHT)
-    left_wing = compute_wing_arrays(b.sx, b.sy, b.sz, N0_LEFT)
+    right_wing = compute_wing_arrays(b.sx, b.sy, b.sz, n0_right, mounting=mounting)
+    left_wing = compute_wing_arrays(b.sx, b.sy, b.sz, n0_left, mounting=mounting)
 
     # Ideal power per wing
     right_power_ideal = compute_wing_power(
@@ -225,15 +239,17 @@ def analyze_v3(req: AnalysisRequestV3) -> AnalysisResponseV3:
     # Constrained tracking
     right_ct = compute_constrained_tracking(
         right_wing["outer_angle_deg"], right_wing["inner_angle_deg"],
-        b.sx, b.sy, b.sz, b.mask, N0_RIGHT, "right",
+        b.sx, b.sy, b.sz, b.mask, n0_right, "right",
         right_limits, req.outer_rate_limit_deg_per_s,
         req.inner_rate_limit_deg_per_s, dt_s, req.keepout_zones,
+        mounting=mounting,
     )
     left_ct = compute_constrained_tracking(
         left_wing["outer_angle_deg"], left_wing["inner_angle_deg"],
-        b.sx, b.sy, b.sz, b.mask, N0_LEFT, "left",
+        b.sx, b.sy, b.sz, b.mask, n0_left, "left",
         left_limits, req.outer_rate_limit_deg_per_s,
         req.inner_rate_limit_deg_per_s, dt_s, req.keepout_zones,
+        mounting=mounting,
     )
 
     # Achieved power

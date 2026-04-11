@@ -38,12 +38,14 @@ function vvlhMatrix(thetaDeg: number): THREE.Matrix4 {
 }
 
 /** Compute wing normal in scene coords from gimbal angles + VVLH rotation.
- *  Rz(outer) * Rx(inner) * n0, then transform by VVLH matrix.  */
+ *  ±Y:  Rz(outer) @ Rx(inner) @ n0  where n0 = [0, ±1, 0]
+ *  ±X:  Rz(outer) @ Ry(inner) @ n0  where n0 = [±1, 0, 0]  */
 function wingNormalScene(
   outerDeg: number,
   innerDeg: number,
   isRight: boolean,
   thetaDeg: number,
+  mounting: "y" | "x" = "y",
 ): THREE.Vector3 {
   const ao = outerDeg * DEG;
   const ai = innerDeg * DEG;
@@ -51,10 +53,18 @@ function wingNormalScene(
   const ci = Math.cos(ai), si = Math.sin(ai);
   const sign = isRight ? 1 : -1;
 
-  // n_body = Rz(ao) @ Rx(ai) @ n0  where n0 = [0, ±1, 0]
-  const nx = -sign * so * ci;
-  const ny = sign * co * ci;
-  const nz = sign * si;
+  let nx: number, ny: number, nz: number;
+  if (mounting === "x") {
+    // n_body = Rz(ao) @ Ry(ai) @ n0  where n0 = [±1, 0, 0]
+    nx = sign * co * ci;
+    ny = sign * so * ci;
+    nz = -sign * si;
+  } else {
+    // n_body = Rz(ao) @ Rx(ai) @ n0  where n0 = [0, ±1, 0]
+    nx = -sign * so * ci;
+    ny = sign * co * ci;
+    nz = sign * si;
+  }
 
   const bodyVec = new THREE.Vector3(nx, ny, nz);
   bodyVec.applyMatrix4(vvlhMatrix(thetaDeg));
@@ -66,19 +76,23 @@ function wingQuaternion(
   outerDeg: number,
   innerDeg: number,
   isRight: boolean,
+  mounting: "y" | "x" = "y",
 ): THREE.Quaternion {
   const ao = outerDeg * DEG;
   const ai = innerDeg * DEG;
 
   const rzMat = new THREE.Matrix4().makeRotationZ(ao);
-  const rxMat = new THREE.Matrix4().makeRotationX(ai);
-  const combined = new THREE.Matrix4().multiplyMatrices(rzMat, rxMat);
+  const riMat = mounting === "x"
+    ? new THREE.Matrix4().makeRotationY(ai)
+    : new THREE.Matrix4().makeRotationX(ai);
+  const combined = new THREE.Matrix4().multiplyMatrices(rzMat, riMat);
 
-  // The wing mesh is a plane in XZ with normal along +Y (right) or -Y (left).
-  // We need to rotate from the body frame wing mount to the gimbal state.
-  // The base orientation already accounts for the wing being on +Y or -Y side.
   if (!isRight) {
-    const flipMat = new THREE.Matrix4().makeRotationZ(Math.PI);
+    // ±Y: flip around Z to mirror to -Y side
+    // ±X: flip around Y to mirror to -X side
+    const flipMat = mounting === "x"
+      ? new THREE.Matrix4().makeRotationY(Math.PI)
+      : new THREE.Matrix4().makeRotationZ(Math.PI);
     combined.multiply(flipMat);
   }
 
@@ -183,6 +197,7 @@ function SatelliteGroup({
   leftOuter,
   leftInner,
   betaDeg,
+  wingMounting,
 }: {
   thetaDeg: number;
   orbitRadius: number;
@@ -191,6 +206,7 @@ function SatelliteGroup({
   leftOuter: number;
   leftInner: number;
   betaDeg: number;
+  wingMounting: "y" | "x";
 }) {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -208,22 +224,22 @@ function SatelliteGroup({
   }, [thetaDeg]);
 
   const rightWingQ = useMemo(
-    () => wingQuaternion(rightOuter, rightInner, true),
-    [rightOuter, rightInner],
+    () => wingQuaternion(rightOuter, rightInner, true, wingMounting),
+    [rightOuter, rightInner, wingMounting],
   );
   const leftWingQ = useMemo(
-    () => wingQuaternion(leftOuter, leftInner, false),
-    [leftOuter, leftInner],
+    () => wingQuaternion(leftOuter, leftInner, false, wingMounting),
+    [leftOuter, leftInner, wingMounting],
   );
 
   // Wing normal arrows (in scene coordinates)
   const rightNormal = useMemo(
-    () => wingNormalScene(rightOuter, rightInner, true, thetaDeg),
-    [rightOuter, rightInner, thetaDeg],
+    () => wingNormalScene(rightOuter, rightInner, true, thetaDeg, wingMounting),
+    [rightOuter, rightInner, thetaDeg, wingMounting],
   );
   const leftNormal = useMemo(
-    () => wingNormalScene(leftOuter, leftInner, false, thetaDeg),
-    [leftOuter, leftInner, thetaDeg],
+    () => wingNormalScene(leftOuter, leftInner, false, thetaDeg, wingMounting),
+    [leftOuter, leftInner, thetaDeg, wingMounting],
   );
 
   const sunDir = useMemo(() => sunDirection(betaDeg), [betaDeg]);
@@ -239,24 +255,41 @@ function SatelliteGroup({
 
   const ARROW_LEN = 0.15;
 
+  // Wing group positions: pivot at body face (±Y face at ±0.02; ±X face at ±0.03)
+  const rightGroupPos: [number, number, number] = wingMounting === "x" ? [0.03, 0, 0] : [0, 0.02, 0];
+  const leftGroupPos:  [number, number, number] = wingMounting === "x" ? [-0.03, 0, 0] : [0, -0.02, 0];
+
+  // Mesh geometry: ±Y → thin in Y; ±X → thin in X
+  const meshGeom: [number, number, number] = wingMounting === "x" ? [0.003, 0.04, 0.10] : [0.10, 0.003, 0.04];
+  // Mesh offset within group: extends panel outward from body face pivot
+  const meshOffset: [number, number, number] = wingMounting === "x" ? [0.07, 0, 0] : [0, 0.07, 0];
+
   // Wing normal arrow endpoints (scene coords)
   const rightArrow = useMemo(() => {
     const mat = vvlhMatrix(thetaDeg);
+    // ±X: arrow base from +X body side (forward wing root); ±Y: from +Y body side (right wing root)
+    const bodyDir = wingMounting === "x"
+      ? new THREE.Vector3(1, 0, 0)
+      : new THREE.Vector3(0, 1, 0);
     const base = new THREE.Vector3(pos[0], pos[1], pos[2]).add(
-      new THREE.Vector3(0, -1, 0).applyMatrix4(mat).multiplyScalar(0.09),
+      bodyDir.applyMatrix4(mat).multiplyScalar(0.09),
     );
     const tip = base.clone().add(rightNormal.clone().multiplyScalar(ARROW_LEN));
     return { base, tip };
-  }, [pos, thetaDeg, rightNormal]);
+  }, [pos, thetaDeg, rightNormal, wingMounting]);
 
   const leftArrow = useMemo(() => {
     const mat = vvlhMatrix(thetaDeg);
+    // ±X: arrow base from -X body side (aft wing root); ±Y: from -Y body side (left wing root)
+    const bodyDir = wingMounting === "x"
+      ? new THREE.Vector3(-1, 0, 0)
+      : new THREE.Vector3(0, -1, 0);
     const base = new THREE.Vector3(pos[0], pos[1], pos[2]).add(
-      new THREE.Vector3(0, 1, 0).applyMatrix4(mat).multiplyScalar(0.09),
+      bodyDir.applyMatrix4(mat).multiplyScalar(0.09),
     );
     const tip = base.clone().add(leftNormal.clone().multiplyScalar(ARROW_LEN));
     return { base, tip };
-  }, [pos, thetaDeg, leftNormal]);
+  }, [pos, thetaDeg, leftNormal, wingMounting]);
 
   return (
     <group ref={groupRef}>
@@ -268,10 +301,10 @@ function SatelliteGroup({
           <Edges color="white" />
         </mesh>
 
-        {/* Right wing (+Y side in body frame) */}
-        <group position={[0, 0.07, 0]} quaternion={rightWingQ}>
-          <mesh position={[0, 0.02, 0]}>
-            <boxGeometry args={[0.10, 0.003, 0.04]} />
+        {/* Forward/Right wing */}
+        <group position={rightGroupPos} quaternion={rightWingQ}>
+          <mesh position={meshOffset}>
+            <boxGeometry args={meshGeom} />
             <meshStandardMaterial
               color="#1a3a6e"
               roughness={0.3}
@@ -282,10 +315,10 @@ function SatelliteGroup({
           </mesh>
         </group>
 
-        {/* Left wing (-Y side in body frame) */}
-        <group position={[0, -0.07, 0]} quaternion={leftWingQ}>
-          <mesh position={[0, 0.02, 0]}>
-            <boxGeometry args={[0.10, 0.003, 0.04]} />
+        {/* Aft/Left wing */}
+        <group position={leftGroupPos} quaternion={leftWingQ}>
+          <mesh position={meshOffset}>
+            <boxGeometry args={meshGeom} />
             <meshStandardMaterial
               color="#1a3a6e"
               roughness={0.3}
@@ -445,9 +478,10 @@ function NadirLine({
 interface OrbitViewer3DProps {
   data: AnalysisResponse;
   betaDeg: number;
+  wingMounting?: "y" | "x";
 }
 
-export default function OrbitViewer3D({ data, betaDeg }: OrbitViewer3DProps) {
+export default function OrbitViewer3D({ data, betaDeg, wingMounting = "y" }: OrbitViewer3DProps) {
   const [sampleIndex, setSampleIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -506,6 +540,7 @@ export default function OrbitViewer3D({ data, betaDeg }: OrbitViewer3DProps) {
             leftOuter={leftOuter}
             leftInner={leftInner}
             betaDeg={betaDeg}
+            wingMounting={wingMounting}
           />
           <NadirLine thetaDeg={thetaDeg} orbitRadius={orbitRadius} />
           <AnimationDriver
@@ -598,7 +633,7 @@ export default function OrbitViewer3D({ data, betaDeg }: OrbitViewer3DProps) {
         {/* Solar array angle readout */}
         <div style={styles.arrayReadout}>
           <div style={styles.wingColumn}>
-            <span style={styles.wingTitle}>Right Wing</span>
+            <span style={styles.wingTitle}>{wingMounting === "x" ? "Forward Wing" : "Right Wing"}</span>
             <span style={styles.wingValue}>
               Outer: <strong>{rightOuter.toFixed(1)}°</strong>
             </span>
@@ -610,7 +645,7 @@ export default function OrbitViewer3D({ data, betaDeg }: OrbitViewer3DProps) {
             </span>
           </div>
           <div style={styles.wingColumn}>
-            <span style={styles.wingTitle}>Left Wing</span>
+            <span style={styles.wingTitle}>{wingMounting === "x" ? "Aft Wing" : "Left Wing"}</span>
             <span style={styles.wingValue}>
               Outer: <strong>{leftOuter.toFixed(1)}°</strong>
             </span>
