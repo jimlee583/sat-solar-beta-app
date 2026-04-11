@@ -32,16 +32,22 @@ function wingQuaternion(
   outerDeg: number,
   innerDeg: number,
   isRight: boolean,
+  mounting: "y" | "x" = "y",
 ): THREE.Quaternion {
   const ao = outerDeg * DEG;
   const ai = innerDeg * DEG;
 
   const rzMat = new THREE.Matrix4().makeRotationZ(ao);
-  const rxMat = new THREE.Matrix4().makeRotationX(ai);
-  const combined = new THREE.Matrix4().multiplyMatrices(rzMat, rxMat);
+  const riMat = mounting === "x"
+    ? new THREE.Matrix4().makeRotationY(ai)
+    : new THREE.Matrix4().makeRotationX(ai);
+  const combined = new THREE.Matrix4().multiplyMatrices(rzMat, riMat);
 
   if (!isRight) {
-    combined.multiply(new THREE.Matrix4().makeRotationZ(Math.PI));
+    const flipMat = mounting === "x"
+      ? new THREE.Matrix4().makeRotationY(Math.PI)
+      : new THREE.Matrix4().makeRotationZ(Math.PI);
+    combined.multiply(flipMat);
   }
 
   const q = new THREE.Quaternion();
@@ -53,6 +59,7 @@ function wingNormalBody(
   outerDeg: number,
   innerDeg: number,
   isRight: boolean,
+  mounting: "y" | "x" = "y",
 ): THREE.Vector3 {
   const ao = outerDeg * DEG;
   const ai = innerDeg * DEG;
@@ -60,6 +67,13 @@ function wingNormalBody(
   const ci = Math.cos(ai), si = Math.sin(ai);
   const sign = isRight ? 1 : -1;
 
+  if (mounting === "x") {
+    return new THREE.Vector3(
+      sign * co * ci,
+      sign * so * ci,
+      -sign * si,
+    ).normalize();
+  }
   return new THREE.Vector3(
     -sign * so * ci,
     sign * co * ci,
@@ -289,9 +303,12 @@ function SunMarkerBody({
 /* ------------------------------------------------------------------ */
 
 const BODY_DIMS: [number, number, number] = [0.30, 0.20, 0.20];
-const WING_MOUNT_Y = 0.14;
-const WING_MESH_OFFSET_Y = 0.12;
-const WING_DIMS: [number, number, number] = [0.50, 0.015, 0.20];
+const WING_MOUNT_Y = 0.10;        // = body Y half-extent (Y face at ±0.10)
+const WING_MESH_OFFSET_Y = 0.16;  // keeps panel center at 0.26 (unchanged)
+const WING_DIMS_Y: [number, number, number] = [0.50, 0.015, 0.20];
+const WING_MOUNT_X = 0.15;        // = body X half-extent (X face at ±0.15)
+const WING_MESH_OFFSET_X = 0.14;  // keeps panel center at 0.29 (unchanged)
+const WING_DIMS_X: [number, number, number] = [0.015, 0.50, 0.20];
 const NORMAL_ARROW_LEN = 0.7;
 
 function SatelliteModel({
@@ -299,35 +316,41 @@ function SatelliteModel({
   rightInner,
   leftOuter,
   leftInner,
+  mounting = "y",
 }: {
   rightOuter: number;
   rightInner: number;
   leftOuter: number;
   leftInner: number;
+  mounting?: "y" | "x";
 }) {
   const rightWingQ = useMemo(
-    () => wingQuaternion(rightOuter, rightInner, true),
-    [rightOuter, rightInner],
+    () => wingQuaternion(rightOuter, rightInner, true, mounting),
+    [rightOuter, rightInner, mounting],
   );
   const leftWingQ = useMemo(
-    () => wingQuaternion(leftOuter, leftInner, false),
-    [leftOuter, leftInner],
+    () => wingQuaternion(leftOuter, leftInner, false, mounting),
+    [leftOuter, leftInner, mounting],
   );
 
   const rightNorm = useMemo(
-    () => wingNormalBody(rightOuter, rightInner, true),
-    [rightOuter, rightInner],
+    () => wingNormalBody(rightOuter, rightInner, true, mounting),
+    [rightOuter, rightInner, mounting],
   );
   const leftNorm = useMemo(
-    () => wingNormalBody(leftOuter, leftInner, false),
-    [leftOuter, leftInner],
+    () => wingNormalBody(leftOuter, leftInner, false, mounting),
+    [leftOuter, leftInner, mounting],
   );
 
-  const arrowBaseY = WING_MOUNT_Y + WING_MESH_OFFSET_Y;
+  const isX = mounting === "x";
+  const mountOffset = isX ? WING_MOUNT_X : WING_MOUNT_Y;
+  const meshOffset = isX ? WING_MESH_OFFSET_X : WING_MESH_OFFSET_Y;
+  const wingDims = isX ? WING_DIMS_X : WING_DIMS_Y;
+  const arrowBase = mountOffset + meshOffset;
 
   const rightArrowBase = useMemo(
-    () => new THREE.Vector3(0, arrowBaseY, 0),
-    [arrowBaseY],
+    () => isX ? new THREE.Vector3(arrowBase, 0, 0) : new THREE.Vector3(0, arrowBase, 0),
+    [isX, arrowBase],
   );
   const rightArrowTip = useMemo(
     () =>
@@ -338,8 +361,8 @@ function SatelliteModel({
   );
 
   const leftArrowBase = useMemo(
-    () => new THREE.Vector3(0, -arrowBaseY, 0),
-    [arrowBaseY],
+    () => isX ? new THREE.Vector3(-arrowBase, 0, 0) : new THREE.Vector3(0, -arrowBase, 0),
+    [isX, arrowBase],
   );
   const leftArrowTip = useMemo(
     () =>
@@ -348,6 +371,10 @@ function SatelliteModel({
         .add(leftNorm.clone().multiplyScalar(NORMAL_ARROW_LEN)),
     [leftArrowBase, leftNorm],
   );
+
+  const rightGroupPos: [number, number, number] = isX ? [mountOffset, 0, 0] : [0, mountOffset, 0];
+  const leftGroupPos: [number, number, number] = isX ? [-mountOffset, 0, 0] : [0, -mountOffset, 0];
+  const meshPos: [number, number, number] = isX ? [meshOffset, 0, 0] : [0, meshOffset, 0];
 
   return (
     <group>
@@ -362,10 +389,10 @@ function SatelliteModel({
         <Edges color="white" />
       </mesh>
 
-      {/* Right wing (+Y side in body frame) */}
-      <group position={[0, WING_MOUNT_Y, 0]} quaternion={rightWingQ}>
-        <mesh position={[0, WING_MESH_OFFSET_Y, 0]}>
-          <boxGeometry args={WING_DIMS} />
+      {/* Right/Forward wing */}
+      <group position={rightGroupPos} quaternion={rightWingQ}>
+        <mesh position={meshPos}>
+          <boxGeometry args={wingDims} />
           <meshStandardMaterial
             color="#1a3a6e"
             roughness={0.3}
@@ -376,10 +403,10 @@ function SatelliteModel({
         </mesh>
       </group>
 
-      {/* Left wing (-Y side in body frame) */}
-      <group position={[0, -WING_MOUNT_Y, 0]} quaternion={leftWingQ}>
-        <mesh position={[0, WING_MESH_OFFSET_Y, 0]}>
-          <boxGeometry args={WING_DIMS} />
+      {/* Left/Aft wing */}
+      <group position={leftGroupPos} quaternion={leftWingQ}>
+        <mesh position={meshPos}>
+          <boxGeometry args={wingDims} />
           <meshStandardMaterial
             color="#1a3a6e"
             roughness={0.3}
@@ -507,11 +534,13 @@ function CameraController({
 interface BodyFrameViewerProps {
   data: AnalysisResponse;
   betaDeg: number;
+  wingMounting?: "y" | "x";
 }
 
 export default function BodyFrameViewer({
   data,
   betaDeg,
+  wingMounting = "y",
 }: BodyFrameViewerProps) {
   void betaDeg;
 
@@ -593,6 +622,7 @@ export default function BodyFrameViewer({
             rightInner={rightInner}
             leftOuter={leftOuter}
             leftInner={leftInner}
+            mounting={wingMounting}
           />
           <AnimationDriver
             playing={playing}
@@ -689,7 +719,7 @@ export default function BodyFrameViewer({
         {/* Readouts */}
         <div style={styles.readoutGrid}>
           <div style={styles.readoutCol}>
-            <span style={styles.readoutTitle}>Right Wing</span>
+            <span style={styles.readoutTitle}>{wingMounting === "x" ? "Forward Wing" : "Right Wing"}</span>
             <span style={styles.readoutValue}>
               Outer: <strong>{rightOuter.toFixed(1)}°</strong>
             </span>
@@ -701,7 +731,7 @@ export default function BodyFrameViewer({
             </span>
           </div>
           <div style={styles.readoutCol}>
-            <span style={styles.readoutTitle}>Left Wing</span>
+            <span style={styles.readoutTitle}>{wingMounting === "x" ? "Aft Wing" : "Left Wing"}</span>
             <span style={styles.readoutValue}>
               Outer: <strong>{leftOuter.toFixed(1)}°</strong>
             </span>

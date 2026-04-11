@@ -4,11 +4,14 @@ import numpy as np
 import pytest
 
 from app.services.solar_array_geometry import (
+    N0_AFT,
+    N0_FORWARD,
     N0_LEFT,
     N0_RIGHT,
     compute_wing_arrays,
     compute_wing_normal,
     rotation_matrix_x,
+    rotation_matrix_y,
     rotation_matrix_z,
     solve_dual_axis_tracking,
 )
@@ -182,3 +185,82 @@ class TestComputeWingArrays:
             np.testing.assert_allclose(
                 result["incidence_deg"], 0.0, atol=1e-8
             )
+
+
+# ---- ±X (velocity-axis) mounting tests ----
+
+
+class TestRotationMatrixY:
+    def test_ry_identity_at_zero(self):
+        R = rotation_matrix_y(0.0)
+        np.testing.assert_allclose(R, np.eye(3), atol=1e-15)
+
+    def test_ry_90_deg(self):
+        R = rotation_matrix_y(np.pi / 2)
+        # Ry(90°) maps [1,0,0] -> [0,0,-1] and [0,0,1] -> [1,0,0]
+        v = R @ np.array([1.0, 0.0, 0.0])
+        np.testing.assert_allclose(v, [0.0, 0.0, -1.0], atol=1e-15)
+        v2 = R @ np.array([0.0, 0.0, 1.0])
+        np.testing.assert_allclose(v2, [1.0, 0.0, 0.0], atol=1e-15)
+
+    def test_ry_is_orthogonal(self):
+        for angle in [0.0, 0.5, 1.0, np.pi / 4, np.pi / 2, np.pi]:
+            Ry = rotation_matrix_y(angle)
+            np.testing.assert_allclose(Ry @ Ry.T, np.eye(3), atol=1e-14)
+            assert abs(np.linalg.det(Ry) - 1.0) < 1e-14
+
+
+class TestXMountedTracking:
+    @pytest.mark.parametrize("n0", [N0_FORWARD, N0_AFT])
+    def test_x_mounted_ideal_tracking_zero_incidence(self, n0):
+        """For random sun vectors, ±X tracking should align the normal with the sun."""
+        rng = np.random.default_rng(42)
+        for _ in range(50):
+            s = rng.standard_normal(3)
+            s = s / np.linalg.norm(s)
+            outer, inner = solve_dual_axis_tracking(s, n0, mounting="x")
+            n = compute_wing_normal(outer, inner, n0, mounting="x")
+            np.testing.assert_allclose(n, s, atol=1e-10)
+
+    def test_forward_wing_sun_along_x(self):
+        """Sun along +X should give zero angles for the forward wing."""
+        s = np.array([1.0, 0.0, 0.0])
+        outer, inner = solve_dual_axis_tracking(s, N0_FORWARD, mounting="x")
+        n = compute_wing_normal(outer, inner, N0_FORWARD, mounting="x")
+        np.testing.assert_allclose(n, s, atol=1e-15)
+        assert abs(outer) < 1e-10
+        assert abs(inner) < 1e-10
+
+    def test_aft_wing_sun_along_neg_x(self):
+        """Sun along -X should give zero angles for the aft wing."""
+        s = np.array([-1.0, 0.0, 0.0])
+        outer, inner = solve_dual_axis_tracking(s, N0_AFT, mounting="x")
+        n = compute_wing_normal(outer, inner, N0_AFT, mounting="x")
+        np.testing.assert_allclose(n, s, atol=1e-15)
+        assert abs(outer) < 1e-10
+        assert abs(inner) < 1e-10
+
+    def test_x_mounted_inner_small_at_high_beta(self):
+        """At beta=80°, theta=0°, forward wing inner should be small (<15°)."""
+        # Sun at beta=80°, theta=0°: sy≈−sin(80°)≈−0.985, sz≈−cos(0°)*cos(80°)≈−0.174
+        beta = np.radians(80.0)
+        sx = 0.0
+        sy = -np.sin(beta)
+        sz = -np.cos(beta)
+        s = np.array([sx, sy, sz])
+        outer, inner = solve_dual_axis_tracking(s, N0_FORWARD, mounting="x")
+        assert abs(np.degrees(inner)) < 15.0
+        # outer should be near atan2(sy, sx) = atan2(-0.985, 0) = -90°
+        assert abs(np.degrees(outer) - (-90.0)) < 5.0
+
+    def test_x_mounted_wing_arrays_unity_cosine(self):
+        """With ideal ±X tracking and no eclipse, cosine efficiency should be ~1."""
+        angles = np.linspace(0, 360, 72, endpoint=False)
+        theta = np.radians(angles)
+        sx = -np.sin(theta)
+        sy = np.zeros_like(theta)
+        sz = -np.cos(theta)
+        for n0 in [N0_FORWARD, N0_AFT]:
+            result = compute_wing_arrays(sx, sy, sz, n0, mounting="x")
+            np.testing.assert_allclose(result["cosine_efficiency"], 1.0, atol=1e-10)
+            np.testing.assert_allclose(result["incidence_deg"], 0.0, atol=1e-8)

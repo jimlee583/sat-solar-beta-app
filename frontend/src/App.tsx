@@ -78,6 +78,7 @@ export default function App() {
                 <OrbitViewer3D
                   data={result}
                   betaDeg={lastRequestRef.current?.beta_deg ?? 0}
+                  wingMounting={lastRequestRef.current?.wing_mounting ?? "y"}
                 />
               )}
 
@@ -85,6 +86,7 @@ export default function App() {
                 <BodyFrameViewer
                   data={result}
                   betaDeg={lastRequestRef.current?.beta_deg ?? 0}
+                  wingMounting={lastRequestRef.current?.wing_mounting ?? "y"}
                 />
               )}
 

@@ -149,6 +149,18 @@ export default function InputPanel({ onAnalyze, loading }: InputPanelProps) {
         {errors.required_bus_power_w && <span style={styles.err}>{errors.required_bus_power_w}</span>}
       </label>
 
+      <label style={styles.label}>
+        Wing Mounting
+        <select
+          value={form.wing_mounting}
+          onChange={e => setForm(f => ({ ...f, wing_mounting: e.target.value as "y" | "x" }))}
+          style={styles.input}
+        >
+          <option value="y">±Y  Cross-track</option>
+          <option value="x">±X  Velocity</option>
+        </select>
+      </label>
+
       <hr style={styles.divider} />
       <h2 style={styles.heading}>Angle Limits [deg]</h2>
 

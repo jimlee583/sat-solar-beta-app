@@ -108,6 +108,9 @@ class AnalysisRequestV2(BaseModel):
         description="Required spacecraft bus power [W]",
     )
 
+    # Wing mounting axis: "y" = ±Y cross-track (default), "x" = ±X velocity
+    wing_mounting: Literal["y", "x"] = Field(default="y")
+
 
 class AnalysisResponseV2(BaseModel):
     """Full output of the Version 2 analysis (orbit + solar array + power)."""
@@ -212,6 +215,9 @@ class AnalysisRequestV3(BaseModel):
     solar_cell_efficiency: float = Field(default=0.30, gt=0, le=1.0)
     degradation_factor: float = Field(default=0.85, gt=0, le=1.0)
     required_bus_power_w: float = Field(default=3000.0, gt=0)
+
+    # Wing mounting axis: "y" = ±Y cross-track (default), "x" = ±X velocity
+    wing_mounting: Literal["y", "x"] = Field(default="y")
 
     # V3: Per-axis angle limits [deg]
     right_outer_min_deg: float = Field(default=-180.0)

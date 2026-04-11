@@ -26,6 +26,9 @@ export interface AnalysisRequest {
   left_inner_min_deg: number;
   left_inner_max_deg: number;
 
+  // Wing mounting axis: "y" = ±Y cross-track (default), "x" = ±X velocity
+  wing_mounting: "y" | "x";
+
   // V3: Rate limits
   outer_rate_limit_deg_per_s: number;
   inner_rate_limit_deg_per_s: number;
@@ -136,6 +139,8 @@ export const DEFAULT_REQUEST: AnalysisRequest = {
   left_outer_max_deg: 180,
   left_inner_min_deg: -60,
   left_inner_max_deg: 60,
+
+  wing_mounting: "y",
 
   outer_rate_limit_deg_per_s: 1.0,
   inner_rate_limit_deg_per_s: 1.0,

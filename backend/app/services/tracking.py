@@ -43,6 +43,7 @@ def compute_constrained_tracking(
     inner_rate_limit_deg_per_s: float,
     dt_s: float,
     keepout_zones: list[KeepOutZone],
+    mounting: str = "y",
 ) -> dict[str, np.ndarray]:
     """
     Compute achieved tracking angles for one wing over the orbit.
@@ -118,7 +119,7 @@ def compute_constrained_tracking(
         # 5. Compute achieved wing normal and incidence
         o_rad = np.radians(ach_outer)
         i_rad = np.radians(ach_inner)
-        n_vec = compute_wing_normal(o_rad, i_rad, n0)
+        n_vec = compute_wing_normal(o_rad, i_rad, n0, mounting=mounting)
         n_len = np.linalg.norm(n_vec)
         if n_len > 0:
             n_vec = n_vec / n_len
