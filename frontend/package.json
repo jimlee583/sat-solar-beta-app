@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:prod": "VITE_API_BASE_URL=https://sat-solar-backend-89232339151.us-west4.run.app sh -c 'tsc -b && vite build'",
+    "deploy": "npm run build && firebase deploy --only hosting",
     "deploy:hosting": "firebase deploy --only hosting",
     "preview": "vite preview"
   },
