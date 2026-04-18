@@ -255,14 +255,11 @@ function SatelliteGroup({
 
   const ARROW_LEN = 0.15;
 
-  // Wing group positions: pivot at body face (±Y face at ±0.02; ±X face at ±0.03)
-  const rightGroupPos: [number, number, number] = wingMounting === "x" ? [0.03, 0, 0] : [0, 0.02, 0];
-  const leftGroupPos:  [number, number, number] = wingMounting === "x" ? [-0.03, 0, 0] : [0, -0.02, 0];
-
   // Mesh geometry: ±Y → thin in Y; ±X → thin in X
   const meshGeom: [number, number, number] = wingMounting === "x" ? [0.003, 0.04, 0.10] : [0.10, 0.003, 0.04];
-  // Mesh offset within group: extends panel outward from body face pivot
-  const meshOffset: [number, number, number] = wingMounting === "x" ? [0.07, 0, 0] : [0, 0.07, 0];
+  // Fixed panel positions: body face offset + mesh offset (not affected by articulation)
+  const rightPanelPos: [number, number, number] = wingMounting === "x" ? [0.10, 0, 0] : [0, 0.09, 0];
+  const leftPanelPos:  [number, number, number] = wingMounting === "x" ? [-0.10, 0, 0] : [0, -0.09, 0];
 
   // Wing normal arrow endpoints (scene coords)
   const rightArrow = useMemo(() => {
@@ -302,32 +299,28 @@ function SatelliteGroup({
         </mesh>
 
         {/* Forward/Right wing */}
-        <group position={rightGroupPos} quaternion={rightWingQ}>
-          <mesh position={meshOffset}>
-            <boxGeometry args={meshGeom} />
-            <meshStandardMaterial
-              color="#1a3a6e"
-              roughness={0.3}
-              metalness={0.7}
-              side={THREE.DoubleSide}
-            />
-            <Edges color="white" />
-          </mesh>
-        </group>
+        <mesh position={rightPanelPos} quaternion={rightWingQ}>
+          <boxGeometry args={meshGeom} />
+          <meshStandardMaterial
+            color="#1a3a6e"
+            roughness={0.3}
+            metalness={0.7}
+            side={THREE.DoubleSide}
+          />
+          <Edges color="white" />
+        </mesh>
 
         {/* Aft/Left wing */}
-        <group position={leftGroupPos} quaternion={leftWingQ}>
-          <mesh position={meshOffset}>
-            <boxGeometry args={meshGeom} />
-            <meshStandardMaterial
-              color="#1a3a6e"
-              roughness={0.3}
-              metalness={0.7}
-              side={THREE.DoubleSide}
-            />
-            <Edges color="white" />
-          </mesh>
-        </group>
+        <mesh position={leftPanelPos} quaternion={leftWingQ}>
+          <boxGeometry args={meshGeom} />
+          <meshStandardMaterial
+            color="#1a3a6e"
+            roughness={0.3}
+            metalness={0.7}
+            side={THREE.DoubleSide}
+          />
+          <Edges color="white" />
+        </mesh>
       </group>
 
       {/* Wing normal arrows (line-based, scene coords) */}
