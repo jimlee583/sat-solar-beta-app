@@ -71,11 +71,22 @@ function wingNormalScene(
   return bodyVec.normalize();
 }
 
-/** Build wing quaternion so the panel mesh faces wing normal direction. */
+/** Build wing quaternion so the panel mesh faces wing normal direction.
+ *
+ *  Both wings use the same gimbal sequence, matching the backend convention
+ *  in `solar_array_geometry.py`:
+ *      ±Y mount:  combined = Rz(outer) · Rx(inner)
+ *      ±X mount:  combined = Rz(outer) · Ry(inner)
+ *  Each wing's outer/inner angles are treated as fully independent (no shared
+ *  180° mirror flip). Positional mirroring of the two wings is handled by the
+ *  caller via the panel's position offset. The panel mesh is rendered with
+ *  DoubleSide material so the per-wing face-normal polarity (encoded by
+ *  `wingNormalScene` via `sign`) does not require a reflected mesh.
+ */
 function wingQuaternion(
   outerDeg: number,
   innerDeg: number,
-  isRight: boolean,
+  _isRight: boolean,
   mounting: "y" | "x" = "y",
 ): THREE.Quaternion {
   const ao = outerDeg * DEG;
@@ -86,15 +97,6 @@ function wingQuaternion(
     ? new THREE.Matrix4().makeRotationY(ai)
     : new THREE.Matrix4().makeRotationX(ai);
   const combined = new THREE.Matrix4().multiplyMatrices(rzMat, riMat);
-
-  if (!isRight) {
-    // ±Y: flip around Z to mirror to -Y side
-    // ±X: flip around Y to mirror to -X side
-    const flipMat = mounting === "x"
-      ? new THREE.Matrix4().makeRotationY(Math.PI)
-      : new THREE.Matrix4().makeRotationZ(Math.PI);
-    combined.multiply(flipMat);
-  }
 
   const q = new THREE.Quaternion();
   q.setFromRotationMatrix(combined);
