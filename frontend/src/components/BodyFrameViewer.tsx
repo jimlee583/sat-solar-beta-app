@@ -303,12 +303,14 @@ function SunMarkerBody({
 /* ------------------------------------------------------------------ */
 
 const BODY_DIMS: [number, number, number] = [0.30, 0.20, 0.20];
-const WING_MOUNT_Y = 0.10;        // = body Y half-extent (Y face at ±0.10)
-const WING_MESH_OFFSET_Y = 0.16;  // keeps panel center at 0.26 (unchanged)
-const WING_DIMS_Y: [number, number, number] = [0.50, 0.015, 0.20];
-const WING_MOUNT_X = 0.15;        // = body X half-extent (X face at ±0.15)
-const WING_MESH_OFFSET_X = 0.14;  // keeps panel center at 0.29 (unchanged)
-const WING_DIMS_X: [number, number, number] = [0.015, 0.50, 0.20];
+const WING_MOUNT_Y = 0.10;        // body Y half-extent (gimbal on ±Y face)
+// ±Y mount: zero-angle face normal = ±Y, so thin axis is Y.
+// Wing long axis = inner-gimbal (X) axis so inner angle acts as a pure hinge.
+const WING_DIMS_Y: [number, number, number] = [0.50, 0.015, 0.20];  // long X (hinge), thin Y (normal), width Z
+const WING_MOUNT_X = 0.15;        // body X half-extent (gimbal on ±X face)
+// ±X mount: zero-angle face normal = ±X, so thin axis is X.
+// Wing long axis = inner-gimbal (Y) axis.
+const WING_DIMS_X: [number, number, number] = [0.015, 0.50, 0.20];  // thin X (normal), long Y (hinge), width Z
 const NORMAL_ARROW_LEN = 0.7;
 
 function SatelliteModel({
@@ -344,14 +346,35 @@ function SatelliteModel({
 
   const isX = mounting === "x";
   const mountOffset = isX ? WING_MOUNT_X : WING_MOUNT_Y;
-  const meshOffset = isX ? WING_MESH_OFFSET_X : WING_MESH_OFFSET_Y;
   const wingDims = isX ? WING_DIMS_X : WING_DIMS_Y;
-  const arrowBase = mountOffset + meshOffset;
+  // Wing extends along the inner-gimbal rotation axis:
+  //   ±Y mount (inner = Rx): long axis = local +X  → halfLong is wingDims.x / 2
+  //   ±X mount (inner = Ry): long axis = local +Y  → halfLong is wingDims.y / 2
+  const halfLong = isX ? wingDims[1] / 2 : wingDims[0] / 2;
 
-  const rightArrowBase = useMemo(
-    () => isX ? new THREE.Vector3(arrowBase, 0, 0) : new THREE.Vector3(0, arrowBase, 0),
-    [isX, arrowBase],
-  );
+  const rightGimbalPos: [number, number, number] = isX
+    ? [mountOffset, 0, 0]
+    : [0, mountOffset, 0];
+  const leftGimbalPos: [number, number, number] = isX
+    ? [-mountOffset, 0, 0]
+    : [0, -mountOffset, 0];
+
+  // Mesh centered at half-long down the long axis so the inner edge sits at
+  // the gimbal and the panel extends outward.
+  const meshLocalPos: [number, number, number] = isX
+    ? [0, halfLong, 0]
+    : [halfLong, 0, 0];
+
+  const rightArrowBase = useMemo(() => {
+    const gimbal = isX
+      ? new THREE.Vector3(mountOffset, 0, 0)
+      : new THREE.Vector3(0, mountOffset, 0);
+    const localCenter = isX
+      ? new THREE.Vector3(0, halfLong, 0)
+      : new THREE.Vector3(halfLong, 0, 0);
+    return gimbal.add(localCenter.applyQuaternion(rightWingQ));
+  }, [isX, mountOffset, halfLong, rightWingQ]);
+
   const rightArrowTip = useMemo(
     () =>
       rightArrowBase
@@ -360,10 +383,16 @@ function SatelliteModel({
     [rightArrowBase, rightNorm],
   );
 
-  const leftArrowBase = useMemo(
-    () => isX ? new THREE.Vector3(-arrowBase, 0, 0) : new THREE.Vector3(0, -arrowBase, 0),
-    [isX, arrowBase],
-  );
+  const leftArrowBase = useMemo(() => {
+    const gimbal = isX
+      ? new THREE.Vector3(-mountOffset, 0, 0)
+      : new THREE.Vector3(0, -mountOffset, 0);
+    const localCenter = isX
+      ? new THREE.Vector3(0, halfLong, 0)
+      : new THREE.Vector3(halfLong, 0, 0);
+    return gimbal.add(localCenter.applyQuaternion(leftWingQ));
+  }, [isX, mountOffset, halfLong, leftWingQ]);
+
   const leftArrowTip = useMemo(
     () =>
       leftArrowBase
@@ -371,10 +400,6 @@ function SatelliteModel({
         .add(leftNorm.clone().multiplyScalar(NORMAL_ARROW_LEN)),
     [leftArrowBase, leftNorm],
   );
-
-  const rightGroupPos: [number, number, number] = isX ? [mountOffset, 0, 0] : [0, mountOffset, 0];
-  const leftGroupPos: [number, number, number] = isX ? [-mountOffset, 0, 0] : [0, -mountOffset, 0];
-  const meshPos: [number, number, number] = isX ? [meshOffset, 0, 0] : [0, meshOffset, 0];
 
   return (
     <group>
@@ -389,9 +414,9 @@ function SatelliteModel({
         <Edges color="white" />
       </mesh>
 
-      {/* Right/Forward wing */}
-      <group position={rightGroupPos} quaternion={rightWingQ}>
-        <mesh position={meshPos}>
+      {/* Right/Forward wing — group at gimbal, mesh offset so edge meets body */}
+      <group position={rightGimbalPos} quaternion={rightWingQ}>
+        <mesh position={meshLocalPos}>
           <boxGeometry args={wingDims} />
           <meshStandardMaterial
             color="#1a3a6e"
@@ -404,8 +429,8 @@ function SatelliteModel({
       </group>
 
       {/* Left/Aft wing */}
-      <group position={leftGroupPos} quaternion={leftWingQ}>
-        <mesh position={meshPos}>
+      <group position={leftGimbalPos} quaternion={leftWingQ}>
+        <mesh position={meshLocalPos}>
           <boxGeometry args={wingDims} />
           <meshStandardMaterial
             color="#1a3a6e"
