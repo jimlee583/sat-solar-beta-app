@@ -335,7 +335,7 @@ sat-solar-beta-app/
     ├── firebase.json                        # Firebase Hosting config
     ├── .firebaserc                          # Firebase project selector
     ├── .env.example                         # Local dev env template
-    ├── .env.production.example              # Production env template
+    ├── .env.production                      # Prod build env (loaded by Vite)
     ├── index.html
     └── src/
         ├── main.tsx
@@ -413,12 +413,25 @@ where API requests are sent:
 | Environment | `VITE_API_BASE_URL` | API calls go to |
 |---|---|---|
 | Local dev (`npm run dev`) | **unset** (default) | Relative `/api/…` paths — handled by the Vite dev proxy → `localhost:8005` |
-| Production build | Set to Cloud Run URL | Full URL, e.g. `https://sat-solar-backend-89232339151.us-west4.run.app/api/…` |
+| Production build (`npm run build`) | Read from `frontend/.env.production` | Full URL, e.g. `https://sat-solar-backend-89232339151.us-west4.run.app/api/…` |
+
+Vite automatically loads `frontend/.env.production` when it builds in
+production mode, so a plain `npm run build` always produces a
+deploy-ready bundle. The file lives at the Vite project root
+(`frontend/.env.production`) — **not** inside `src/`. Env files under
+`src/` are ignored by Vite.
 
 To override in local development (e.g. to point at the remote backend):
 
 ```bash
 VITE_API_BASE_URL=https://sat-solar-backend-89232339151.us-west4.run.app npm run dev
+```
+
+To override during a production build (e.g. to point a preview deploy at
+a staging backend):
+
+```bash
+VITE_API_BASE_URL=https://staging-backend.run.app npm run build
 ```
 
 ---
@@ -433,32 +446,83 @@ The backend is a Dockerized FastAPI service deployed to **Google Cloud Run**.
 | Artifact Registry region | `us-west4` |
 | Artifact Registry repo | `sat-solar-backend` |
 | Cloud Run service | `sat-solar-backend` |
+| Image path | `us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend` |
+
+### Prerequisites (one-time)
+
+- [Docker](https://docs.docker.com/get-docker/) with `buildx` (bundled with
+  Docker Desktop)
+- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) authenticated
+  against the `sat-solar-app` project:
+  ```bash
+  gcloud auth login
+  gcloud config set project sat-solar-app
+  gcloud auth configure-docker us-west4-docker.pkg.dev
+  ```
 
 ### Rebuild & Redeploy
 
-Run from the **repository root** after making backend code changes.
+Run from the **repository root** after making backend code changes. Pick a
+**new, unique tag** for every release (e.g. `v3`, `v4`, …, or a git short
+SHA). Reusing an existing tag makes rollbacks harder and can leave Cloud
+Run on an older digest if a subsequent deploy is skipped.
 
-**1. Build and push the Docker image:**
+**1. Pick a tag and export it:**
+
+```bash
+export TAG=v3   # bump this each release (v4, v5, …), or use: $(git rev-parse --short HEAD)
+export IMAGE=us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:$TAG
+```
+
+**2. Build and push the Docker image** (linux/amd64 is required by Cloud
+Run, even from an Apple Silicon Mac):
 
 ```bash
 docker buildx build --platform linux/amd64 \
-  -t us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:v2 \
+  -t "$IMAGE" \
   -f backend/Dockerfile backend \
   --push
 ```
 
-**2. Deploy the new image to Cloud Run:**
+**3. Deploy the new image to Cloud Run:**
 
 ```bash
 gcloud run deploy sat-solar-backend \
-  --image us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:v2 \
+  --image "$IMAGE" \
   --region us-west4 \
   --platform managed \
   --allow-unauthenticated
 ```
 
-> **Tip:** Bump the tag (e.g. `:v3`, `:v4`) for each release so you can roll
-> back to a previous image if needed.
+**4. Verify the deploy:**
+
+```bash
+curl -fsS https://sat-solar-backend-89232339151.us-west4.run.app/health
+# → {"status":"ok"}
+```
+
+> **Why bump the tag?** `gcloud run deploy --image …:v2` resolves the tag
+> to an image digest at deploy time. If you later `docker push` a new
+> image to the same tag without running `gcloud run deploy` again, Cloud
+> Run keeps serving the **old** digest. Using a fresh tag per release
+> prevents this class of "I pushed but nothing changed" bug and makes
+> rollbacks trivial (`gcloud run deploy … --image …:v2`).
+
+### Rollback
+
+```bash
+gcloud run deploy sat-solar-backend \
+  --image us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:<previous-tag> \
+  --region us-west4 --platform managed --allow-unauthenticated
+```
+
+List previously-built tags:
+
+```bash
+gcloud artifacts docker images list \
+  us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend \
+  --include-tags
+```
 
 ---
 
@@ -467,48 +531,74 @@ gcloud run deploy sat-solar-backend \
 The frontend is a React + TypeScript + Vite SPA deployed to
 **Firebase Hosting**.
 
-Prerequisites:
+### Prerequisites (one-time)
+
 - [Firebase CLI](https://firebase.google.com/docs/cli) installed and
   authenticated (`firebase login`)
-- `frontend/.firebaserc` must reference the Firebase project `sat-solar-app`
+- `frontend/.firebaserc` references the Firebase project `sat-solar-app`
 
 ### Rebuild & Redeploy
 
-Run from the **`frontend/` directory** after making frontend code changes.
-
-**1. Production build:**
+Run from the **`frontend/` directory** after making frontend code changes:
 
 ```bash
-npm run build:prod
+cd frontend
+npm install        # only if dependencies changed
+npm run deploy     # builds with production env, then deploys hosting
 ```
 
-`build:prod` (defined in `package.json`) automatically injects the required
-environment variable:
+`npm run deploy` is a shortcut for `npm run build && firebase deploy --only
+hosting`. If you want to run the two steps separately:
 
+```bash
+npm run build                      # produces dist/ using frontend/.env.production
+firebase deploy --only hosting     # uploads dist/ to Firebase Hosting
 ```
+
+The build picks up `VITE_API_BASE_URL` from `frontend/.env.production`,
+which points at the Cloud Run backend. The `firebase.json` is configured
+for a single-page app — all routes rewrite to `index.html`.
+
+### Changing the backend URL used by the frontend
+
+Edit the one-line file:
+
+```1:1:frontend/.env.production
 VITE_API_BASE_URL=https://sat-solar-backend-89232339151.us-west4.run.app
 ```
 
-This ensures the compiled frontend calls the Cloud Run backend directly
-instead of using a relative proxy path.
-
-**2. Deploy to Firebase Hosting:**
+then redeploy with `npm run deploy`. For a one-off build against a
+different backend (e.g. a staging environment) without editing the file:
 
 ```bash
+VITE_API_BASE_URL=https://staging-backend.run.app npm run build
 firebase deploy --only hosting
 ```
 
-The `firebase.json` is configured for a single-page app — all routes rewrite
-to `index.html`.
+---
 
-### Manual / Alternative Build
+## Deployment — Full Release Checklist
 
-If you need to set the API URL yourself (or use a different backend):
+A typical end-to-end release from a clean `main` branch:
 
 ```bash
-VITE_API_BASE_URL=https://YOUR-CLOUD-RUN-URL.run.app npm run build
-firebase deploy --only hosting
+# --- 1. Backend ---
+cd /path/to/sat-solar-beta-app
+export TAG=v3   # bump this each release
+export IMAGE=us-west4-docker.pkg.dev/sat-solar-app/sat-solar-backend/sat-solar-backend:$TAG
+docker buildx build --platform linux/amd64 -t "$IMAGE" -f backend/Dockerfile backend --push
+gcloud run deploy sat-solar-backend --image "$IMAGE" \
+  --region us-west4 --platform managed --allow-unauthenticated
+curl -fsS https://sat-solar-backend-89232339151.us-west4.run.app/health
+
+# --- 2. Frontend ---
+cd frontend
+npm run deploy
 ```
+
+If you change the backend URL in `frontend/.env.production`, remember to
+also add the new hosting origin to the CORS allow-list in
+`backend/app/main.py` and redeploy the backend (see *CORS* below).
 
 ---
 
@@ -539,8 +629,8 @@ CORS list in `main.py` **and** redeploy the backend.
 │  app                 │         │  .us-west4.run.app       │
 └─────────────────────┘         └─────────────────────────┘
         ▲                                ▲
-        │  npm run build:prod            │  docker buildx build … --push
-        │  firebase deploy               │  gcloud run deploy
+        │  npm run deploy                │  docker buildx build … --push
+        │  (build + firebase deploy)     │  gcloud run deploy
         │                                │
    frontend/                        backend/
 ```
