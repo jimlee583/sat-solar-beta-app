@@ -28,10 +28,17 @@ const AXIS_LEN = 1.5;
 /*  Geometry helpers                                                    */
 /* ------------------------------------------------------------------ */
 
+/** Build wing quaternion. Both wings use the same gimbal sequence,
+ *  matching the backend convention in `solar_array_geometry.py`:
+ *      ±Y mount:  combined = Rz(outer) · Rx(inner)
+ *      ±X mount:  combined = Rz(outer) · Ry(inner)
+ *  Each wing's outer/inner angles are treated as fully independent; positional
+ *  mirroring is handled by each wing's gimbal position offset.
+ */
 function wingQuaternion(
   outerDeg: number,
   innerDeg: number,
-  isRight: boolean,
+  _isRight: boolean,
   mounting: "y" | "x" = "y",
 ): THREE.Quaternion {
   const ao = outerDeg * DEG;
@@ -42,13 +49,6 @@ function wingQuaternion(
     ? new THREE.Matrix4().makeRotationY(ai)
     : new THREE.Matrix4().makeRotationX(ai);
   const combined = new THREE.Matrix4().multiplyMatrices(rzMat, riMat);
-
-  if (!isRight) {
-    const flipMat = mounting === "x"
-      ? new THREE.Matrix4().makeRotationY(Math.PI)
-      : new THREE.Matrix4().makeRotationZ(Math.PI);
-    combined.multiply(flipMat);
-  }
 
   const q = new THREE.Quaternion();
   q.setFromRotationMatrix(combined);
